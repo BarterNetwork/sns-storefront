@@ -1,0 +1,78 @@
+name: Daily SNS Inventory Sync
+
+on:
+  schedule:
+    # Runs every day at 4:00 AM UTC (11pm ET / 10pm CT)
+    # Adjust to your preferred time using https://crontab.guru
+    - cron: '0 4 * * *'
+
+  # Also allow manual trigger from GitHub Actions UI
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Sync mode: inventory (fast, daily) or full (slower, weekly)'
+        required: true
+        default: 'inventory'
+        type: choice
+        options:
+          - inventory
+          - full
+
+jobs:
+  sync-inventory:
+    name: Sync SNS Inventory
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Trigger inventory sync
+        run: |
+          MODE=${{ github.event.inputs.mode || 'inventory' }}
+          echo "Running sync in mode: $MODE"
+
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -X POST \
+            -H "Authorization: Bearer ${{ secrets.SYNC_SECRET }}" \
+            "${{ secrets.VERCEL_APP_URL }}/api/sync?mode=$MODE")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+
+          echo "HTTP Status: $HTTP_CODE"
+          echo "Response: $BODY"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "❌ Sync failed with status $HTTP_CODE"
+            exit 1
+          fi
+
+          echo "✅ Sync completed successfully"
+
+  # Separate job: run a full sync every Sunday
+  sync-full-weekly:
+    name: Weekly Full Catalog Sync
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Only on Sundays (day 0)
+    if: github.event_name == 'schedule' && contains(fromJSON('["0"]'), format('{0}', github.event.schedule))
+
+    steps:
+      - name: Trigger full sync
+        run: |
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -X POST \
+            -H "Authorization: Bearer ${{ secrets.SYNC_SECRET }}" \
+            "${{ secrets.VERCEL_APP_URL }}/api/sync?mode=full")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+
+          echo "HTTP Status: $HTTP_CODE"
+          echo "Response: $BODY"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "❌ Full sync failed with status $HTTP_CODE"
+            exit 1
+          fi
+
+          echo "✅ Full sync completed successfully"
