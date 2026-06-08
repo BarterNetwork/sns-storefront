@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import ProductCard from "@/components/ProductCard";
@@ -100,21 +100,24 @@ function StorefrontInner() {
     router.replace(buildPageUrl(filters, baseCategory, page), { scroll: false });
   }, [filters, baseCategory, page]);
 
-  // Fetch products
-  const fetchProducts = useCallback(async () => {
+  // Fetch products whenever filters, category, or page change
+  useEffect(() => {
+    let cancelled = false;
     setLoading(true);
-    try {
-      const res = await fetch(buildApiUrl(filters, baseCategory, page));
-      const json = await res.json();
-      setProducts(json.data || []);
-      setCount(json.count || 0);
-      setTotalPages(json.totalPages || 1);
-    } finally {
-      setLoading(false);
-    }
+    fetch(buildApiUrl(filters, baseCategory, page))
+      .then(r => r.json())
+      .then(json => {
+        if (cancelled) return;
+        setProducts(json.data || []);
+        setCount(json.count || 0);
+        setTotalPages(json.totalPages || 1);
+      })
+      .catch(() => {
+        if (!cancelled) setProducts([]);
+      })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [filters, baseCategory, page]);
-
-  useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
   // Fetch filter groups when baseCategory changes
   useEffect(() => {

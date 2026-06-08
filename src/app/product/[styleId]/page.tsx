@@ -81,7 +81,8 @@ export default function ProductDetailPage() {
     setBuyError("");
     setBuying(true);
     try {
-      const res = await fetch("https://barternetworkokc.com/api/listings/apparel-order", {
+      const base = process.env.NEXT_PUBLIC_BARTER_NETWORK_URL || "https://barternetworkokc.com";
+      const res = await fetch(`${base}/api/listings/apparel-order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
