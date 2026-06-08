@@ -49,7 +49,6 @@ export default function ProductDetailPage() {
   const [activeSize, setActiveSize] = useState<Size | null>(null);
   const [activeImg, setActiveImg] = useState<"front" | "back" | "model">("front");
   const [showInquiry, setShowInquiry] = useState(false);
-  const [buying, setBuying] = useState(false);
   const [buyError, setBuyError] = useState("");
 
   useEffect(() => {
@@ -77,32 +76,22 @@ export default function ProductDetailPage() {
   const price = activeSize?.piecePrice ?? activeColor?.sizes[0]?.piecePrice ?? null;
   const inStock = activeSize ? activeSize.qtyTotal > 0 : (activeColor?.sizes.some(s => s.qtyTotal > 0) ?? false);
 
-  const handleBuy = async () => {
-    setBuyError("");
-    setBuying(true);
-    try {
-      const base = process.env.NEXT_PUBLIC_BARTER_NETWORK_URL || "https://barternetworkokc.com";
-      const res = await fetch(`${base}/api/listings/apparel-order`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          product_name: style?.title || style?.styleName,
-          brand:        style?.brandName,
-          color:        activeColor?.colorName || null,
-          size:         activeSize?.sizeName || null,
-          sku:          activeSize?.sku || null,
-          price_cents:  Math.round((price || 0) * 100),
-          image_url:    activeColor?.frontImage || style?.styleImage || null,
-          style_id:     style?.styleID,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok || data.error) throw new Error(data.error || "Failed to create order");
-      window.location.href = data.checkout_url;
-    } catch (err: any) {
-      setBuyError(err.message || "Something went wrong. Please try again.");
-      setBuying(false);
-    }
+  const handleBuy = () => {
+    if (!price) { setBuyError("Unable to determine price. Please try again."); return; }
+
+    const base = process.env.NEXT_PUBLIC_BARTER_NETWORK_URL || "https://barternetworkokc.com";
+    const params = new URLSearchParams({
+      title:       style?.title || style?.styleName || "Apparel Order",
+      brand:       style?.brandName || "",
+      color:       activeColor?.colorName || "",
+      size:        activeSize?.sizeName || "",
+      sku:         activeSize?.sku || "",
+      price_cents: String(Math.round(price * 100)),
+      style_id:    String(style?.styleID || ""),
+      image:       activeColor?.frontImage || style?.styleImage || "",
+    });
+
+    window.location.href = `${base}/checkout/apparel?${params}`;
   };
 
   const inquiryProduct = {
@@ -237,12 +226,8 @@ export default function ProductDetailPage() {
           )}
 
           {/* CTA */}
-          <button
-            className="cta-btn"
-            onClick={handleBuy}
-            disabled={buying}
-          >
-            {buying ? "Redirecting to checkout…" : "Buy with Barter Bucks →"}
+          <button className="cta-btn" onClick={handleBuy}>
+            Buy with Barter Bucks →
           </button>
 
           {buyError && <p className="buy-error">{buyError}</p>}

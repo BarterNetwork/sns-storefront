@@ -104,7 +104,12 @@ export async function GET(req: NextRequest) {
       .from("style_summary")
       .select("*", { count: "exact" });
 
-    if (baseCategory)  query = query.eq("base_category", baseCategory);
+    if (baseCategory) {
+      const cats = baseCategory.split(",").map(c => c.trim()).filter(Boolean);
+      query = cats.length === 1
+        ? query.eq("base_category", cats[0])
+        : query.in("base_category", cats);
+    }
     if (sustainable)   query = query.eq("sustainable", true);
     if (newStyle)      query = query.eq("new_style", true);
     if (inStock)       query = query.gt("total_qty", 0);

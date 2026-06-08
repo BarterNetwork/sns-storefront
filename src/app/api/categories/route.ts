@@ -40,8 +40,10 @@ export async function GET(req: NextRequest) {
   const baseCategory = req.nextUrl.searchParams.get("baseCategory") || null;
 
   try {
-    const activeGroups = baseCategory && CONTEXTUAL_GROUPS[baseCategory]
-      ? CONTEXTUAL_GROUPS[baseCategory]
+    // baseCategory may be a comma-separated group — use first value for context lookup
+    const baseCategoryKey = baseCategory ? baseCategory.split(",")[0].trim() : "";
+    const activeGroups = baseCategoryKey && CONTEXTUAL_GROUPS[baseCategoryKey]
+      ? CONTEXTUAL_GROUPS[baseCategoryKey]
       : DEFAULT_GROUPS;
 
     // Fetch categories (fast — only ~200 rows)

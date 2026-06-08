@@ -1,32 +1,33 @@
 "use client";
 
-// Parent categories with their sub-categories
-const CATEGORIES = [
+export const CATEGORIES = [
   { label: "All",         value: "",                    subs: [] },
   {
-    label: "T-Shirts", value: "T-Shirts - Premium",
+    label: "T-Shirts",
+    value: "T-Shirts - Premium,T-Shirts - Core,T-Shirts - Long Sleeve",
     subs: [
-      { label: "Premium",    value: "T-Shirts - Premium" },
-      { label: "Core",       value: "T-Shirts - Core" },
-      { label: "Long Sleeve",value: "T-Shirts - Long Sleeve" },
+      { label: "Premium",     value: "T-Shirts - Premium" },
+      { label: "Core",        value: "T-Shirts - Core" },
+      { label: "Long Sleeve", value: "T-Shirts - Long Sleeve" },
     ],
   },
   {
-    label: "Fleece", value: "Fleece - Premium - Hood",
+    label: "Fleece",
+    value: "Fleece - Premium - Hood,Fleece - Premium - Crew,Fleece - Core - Hood,Fleece - Core - Crew",
     subs: [
-      { label: "Premium Hood",  value: "Fleece - Premium - Hood" },
-      { label: "Premium Crew",  value: "Fleece - Premium - Crew" },
-      { label: "Core Hood",     value: "Fleece - Core - Hood" },
-      { label: "Core Crew",     value: "Fleece - Core - Crew" },
+      { label: "Premium Hood", value: "Fleece - Premium - Hood" },
+      { label: "Premium Crew", value: "Fleece - Premium - Crew" },
+      { label: "Core Hood",    value: "Fleece - Core - Hood" },
+      { label: "Core Crew",    value: "Fleece - Core - Crew" },
     ],
   },
-  { label: "Bottoms",     value: "Bottoms",     subs: [] },
-  { label: "Headwear",    value: "Headwear",    subs: [] },
-  { label: "Outerwear",   value: "Outerwear",   subs: [] },
-  { label: "Bags",        value: "Bags",        subs: [] },
-  { label: "Wovens",      value: "Wovens",      subs: [] },
-  { label: "Accessories", value: "Accessories", subs: [] },
-  { label: "Polos",       value: "Polos",       subs: [] },
+  { label: "Bottoms",     value: "Bottoms",          subs: [] },
+  { label: "Headwear",    value: "Headwear",         subs: [] },
+  { label: "Outerwear",   value: "Outerwear",        subs: [] },
+  { label: "Bags",        value: "Bags",             subs: [] },
+  { label: "Wovens",      value: "Wovens",           subs: [] },
+  { label: "Accessories", value: "Accessories",      subs: [] },
+  { label: "Polos",       value: "Polos",            subs: [] },
   { label: "Knits",       value: "Knits & Layering", subs: [] },
 ];
 
@@ -37,10 +38,17 @@ interface Props {
 
 export default function CategoryNav({ baseCategory, onBaseCategory }: Props) {
   const active = CATEGORIES.find(c =>
-    c.value === baseCategory || c.subs.some(s => s.value === baseCategory)
+    c.value === baseCategory ||
+    c.subs.some(s => s.value === baseCategory) ||
+    (c.value && c.value.split(",").includes(baseCategory))
   ) || CATEGORIES[0];
 
   const hasSubs = active.subs.length > 0;
+
+  // A sub-pill is active only when it exactly matches baseCategory (not the parent group)
+  const activeSub = hasSubs && active.subs.some(s => s.value === baseCategory)
+    ? baseCategory
+    : null;
 
   return (
     <div className="category-nav">
@@ -60,13 +68,20 @@ export default function CategoryNav({ baseCategory, onBaseCategory }: Props) {
         })}
       </div>
 
-      {/* Sub-category pills */}
+      {/* Sub-category pills — only shown when a parent with subs is active */}
       {hasSubs && (
         <div className="sub-tabs">
+          {/* "All" sub-pill to reset to full parent group */}
+          <button
+            className={`sub-tab ${!activeSub ? "active" : ""}`}
+            onClick={() => onBaseCategory(active.value)}
+          >
+            All {active.label}
+          </button>
           {active.subs.map((s) => (
             <button
               key={s.value}
-              className={`sub-tab ${baseCategory === s.value ? "active" : ""}`}
+              className={`sub-tab ${activeSub === s.value ? "active" : ""}`}
               onClick={() => onBaseCategory(s.value)}
             >
               {s.label}
@@ -81,8 +96,6 @@ export default function CategoryNav({ baseCategory, onBaseCategory }: Props) {
           margin: 0 auto;
           padding: 1.25rem 2rem 0;
         }
-
-        /* Parent tabs */
         .parent-tabs {
           display: flex;
           gap: 0.35rem;
@@ -108,8 +121,6 @@ export default function CategoryNav({ baseCategory, onBaseCategory }: Props) {
           color: #0a0a0a;
           font-weight: 600;
         }
-
-        /* Sub-category pills */
         .sub-tabs {
           display: flex;
           gap: 0.35rem;
