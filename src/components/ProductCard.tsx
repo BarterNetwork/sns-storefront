@@ -43,8 +43,8 @@ export default function ProductCard({ product, onInquire }: Props) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* Image — links to detail page */}
-      <Link href={`/product/${product.style_id}`} className="card-img-wrap">
+      {/* Image */}
+      <div className="card-img-wrap">
         {displayImage ? (
           <img
             src={displayImage}
@@ -69,10 +69,11 @@ export default function ProductCard({ product, onInquire }: Props) {
 
         {/* Hover overlay */}
         <div className="card-overlay">
-          <span className="btn-view">View Product →</span>
+          <Link href={`/product/${product.style_id}`} className="btn-view-link">
+            View Product →
+          </Link>
         </div>
-
-      </Link>
+      </div>
 
       {/* Info */}
       <div className="card-info">
@@ -180,25 +181,19 @@ export default function ProductCard({ product, onInquire }: Props) {
         }
         .card-name-link { text-decoration: none; color: inherit; display: block; }
         .card-name-link:hover .card-name { color: #e8c97e; }
-        .btn-inquire-link {
-          display: block;
-          width: 100%;
-          text-align: center;
-          background: transparent;
-          color: #888;
-          border: 1px solid #2a2a2a;
-          padding: 0.5rem;
-          font-size: 0.72rem;
-          font-weight: 600;
-          letter-spacing: 0.05em;
+        .btn-view-link {
+          background: #e8c97e;
+          color: #0a0a0a;
+          padding: 0.65rem 1.4rem;
+          font-size: 0.8rem;
+          font-weight: 700;
+          letter-spacing: 0.06em;
           text-transform: uppercase;
           border-radius: 4px;
           text-decoration: none;
-          transition: all 0.2s;
-          margin-top: 0.6rem;
-          box-sizing: border-box;
+          transition: background 0.2s;
         }
-        .btn-inquire-link:hover { border-color: #e8c97e; color: #e8c97e; }
+        .btn-view-link:hover { background: #f0d99a; }
 
         .card-info { padding: 0.9rem 1rem 1rem; }
         .card-brand {

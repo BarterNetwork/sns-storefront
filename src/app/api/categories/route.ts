@@ -10,20 +10,25 @@ import { supabase } from "@/lib/supabase";
  */
 
 const GROUP_LABELS: Record<string, string> = {
-  gender:         "Gender",
-  style:          "Style",
-  material:       "Material",
-  features:       "Features",
-  sustainability: "Sustainability",
-  special:        "Special Treatments",
-  weight:         "Weight",
-  sport:          "Sport / Use",
-  hat_type:       "Hat Type",
-  bag_type:       "Bag Type",
+  gender:          "Gender",
+  style:           "Style",
+  material:        "Material",
+  features:        "Features",
+  sustainability:  "Sustainability",
+  special:         "Special Treatments",
+  weight:          "Weight",
+  sport:           "Sport / Use",
+  hat_type:        "Hat Type",
+  bag_type:        "Bag Type",
+  bottom_type:     "Type",
+  outerwear_type:  "Type",
+  accessory_type:  "Type",
+  woven_type:      "Type",
+  knit_type:       "Type",
 };
 
 const GROUP_ORDER = [
-  "gender", "style", "material", "features",
+  "gender", "bottom_type", "style", "material", "features",
   "sustainability", "special", "weight", "sport",
   "hat_type", "bag_type",
 ];
@@ -32,6 +37,7 @@ const GROUP_ORDER = [
 const CONTEXTUAL_GROUPS: Record<string, string[]> = {
   "Headwear": ["gender", "hat_type", "material", "features", "special"],
   "Bags":     ["bag_type", "material", "features", "special"],
+  "Bottoms":  ["bottom_type", "gender", "material", "features", "sustainability"],
 };
 
 const DEFAULT_GROUPS = ["gender", "style", "material", "features", "sustainability", "special", "weight", "sport"];

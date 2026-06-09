@@ -146,11 +146,8 @@ function StorefrontInner() {
       <header className="site-header">
         <div className="header-inner">
           <div className="logo-block">
-            <span className="logo-icon">✦</span>
-            <div>
-              <h1 className="logo-name">THREADWORKS</h1>
-              <p className="logo-sub">Custom Apparel & Trade</p>
-            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="T-Shirt Depot & More" className="logo-img" />
           </div>
 
           {/* Search bar in header */}
@@ -175,22 +172,6 @@ function StorefrontInner() {
           <div className="header-tagline">Buy with Barter Bucks · Wear what you love</div>
         </div>
       </header>
-
-      {/* Hero */}
-      <section className="hero">
-        <div className="hero-content">
-          <h2 className="hero-title">Premium Blanks.<br />Barter Welcome.</h2>
-          <p className="hero-body">
-            Browse our full catalog of wholesale activewear &amp; apparel.
-            Buy with Barter Bucks — no cash required.
-          </p>
-        </div>
-        <div className="hero-stats">
-          <div className="stat"><span className="stat-num">200+</span><span className="stat-label">Brands</span></div>
-          <div className="stat"><span className="stat-num">5k+</span><span className="stat-label">Styles</span></div>
-          <div className="stat"><span className="stat-num">100%</span><span className="stat-label">Trade Ready</span></div>
-        </div>
-      </section>
 
       {/* Category nav */}
       <CategoryNav baseCategory={baseCategory} onBaseCategory={updateCategory} />
@@ -281,10 +262,8 @@ function StorefrontInner() {
         /* Header */
         .site-header { border-bottom: 1px solid #1a1a1a; padding: 1rem 2rem; }
         .header-inner { max-width: 1400px; margin: 0 auto; display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
-        .logo-block { display: flex; align-items: center; gap: 0.75rem; flex-shrink: 0; }
-        .logo-icon { font-size: 1.4rem; color: #e8c97e; }
-        .logo-name { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 0.12em; color: #f0ede8; margin: 0; line-height: 1; }
-        .logo-sub { font-size: 0.62rem; letter-spacing: 0.18em; text-transform: uppercase; color: #666; margin: 0; }
+        .logo-block { display: flex; align-items: center; flex-shrink: 0; }
+        .logo-img { height: 52px; width: auto; object-fit: contain; }
         .header-tagline { font-size: 0.75rem; color: #555; letter-spacing: 0.04em; margin-left: auto; }
 
         /* Search */
