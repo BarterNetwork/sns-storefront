@@ -28,16 +28,21 @@ const GROUP_LABELS: Record<string, string> = {
 };
 
 const GROUP_ORDER = [
-  "gender", "bottom_type", "style", "material", "features",
+  "gender", "bottom_type", "outerwear_type", "accessory_type",
+  "woven_type", "knit_type", "style", "material", "features",
   "sustainability", "special", "weight", "sport",
   "hat_type", "bag_type",
 ];
 
 // For these basecategories, show contextual groups instead of defaults
 const CONTEXTUAL_GROUPS: Record<string, string[]> = {
-  "Headwear": ["gender", "hat_type", "material", "features", "special"],
-  "Bags":     ["bag_type", "material", "features", "special"],
-  "Bottoms":  ["bottom_type", "gender", "material", "features", "sustainability"],
+  "Headwear":        ["gender", "hat_type", "material", "features", "special"],
+  "Bags":            ["bag_type", "material", "features", "special"],
+  "Bottoms":         ["bottom_type", "gender", "material", "features", "sustainability"],
+  "Outerwear":       ["outerwear_type", "gender", "material", "features", "sustainability"],
+  "Accessories":     ["accessory_type", "gender", "material", "features"],
+  "Wovens":          ["woven_type", "gender", "material", "features", "special"],
+  "Knits & Layering":["knit_type", "gender", "material", "features", "sustainability"],
 };
 
 const DEFAULT_GROUPS = ["gender", "style", "material", "features", "sustainability", "special", "weight", "sport"];

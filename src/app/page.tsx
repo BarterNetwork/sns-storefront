@@ -9,7 +9,8 @@ import FilterSidebar, { FilterState } from "@/components/FilterSidebar";
 import InquiryModal from "@/components/InquiryModal";
 
 const CATEGORY_GROUPS = [
-  "gender","style","material","features",
+  "gender","bottom_type","outerwear_type","accessory_type","woven_type","knit_type",
+  "style","material","features",
   "sustainability","special","weight","sport",
   "hat_type","bag_type",
 ];
@@ -147,7 +148,7 @@ function StorefrontInner() {
         <div className="header-inner">
           <div className="logo-block">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="T-Shirt Depot & More" className="logo-img" />
+            <img src="/logo.png" alt="T-Shirt Depot & More" width={52} height={52} style={{ height: 52, width: 52, objectFit: "contain", display: "block" }} />
           </div>
 
           {/* Search bar in header */}
@@ -342,9 +343,22 @@ function StorefrontInner() {
   );
 }
 
+function StorefrontShell() {
+  return (
+    <div style={{ minHeight: "100vh", background: "#0a0a0a" }}>
+      <header style={{ borderBottom: "1px solid #1a1a1a", padding: "1rem 2rem" }}>
+        <div style={{ maxWidth: 1400, margin: "0 auto" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="T-Shirt Depot & More" width={52} height={52} style={{ height: 52, width: 52, objectFit: "contain", display: "block" }} />
+        </div>
+      </header>
+    </div>
+  );
+}
+
 export default function StorefrontPage() {
   return (
-    <Suspense>
+    <Suspense fallback={<StorefrontShell />}>
       <StorefrontInner />
     </Suspense>
   );

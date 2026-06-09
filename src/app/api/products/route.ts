@@ -33,7 +33,8 @@ import { supabase } from "@/lib/supabase";
  */
 
 const CATEGORY_GROUPS = [
-  "gender", "style", "material", "features",
+  "gender", "bottom_type", "outerwear_type", "accessory_type", "woven_type", "knit_type",
+  "style", "material", "features",
   "sustainability", "special", "weight", "sport",
   "hat_type", "bag_type",
 ];
