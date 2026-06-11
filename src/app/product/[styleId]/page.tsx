@@ -61,6 +61,18 @@ export default function ProductDetailPage() {
         if (data.colors?.length > 0) {
           setActiveColor(data.colors[0]);
         }
+        // Fire ViewContent so Facebook can match this visit to the catalog product
+        if (typeof window !== "undefined" && (window as any).fbq && data.style) {
+          const price = data.colors?.[0]?.sizes?.[0]?.piecePrice ?? null;
+          (window as any).fbq("track", "ViewContent", {
+            content_ids: [String(data.style.styleID)],
+            content_type: "product",
+            content_name: data.style.title || data.style.styleName,
+            content_category: data.style.baseCategory || "",
+            value: price ?? undefined,
+            currency: "USD",
+          });
+        }
       })
       .catch(() => setError("Failed to load product"))
       .finally(() => setLoading(false));
