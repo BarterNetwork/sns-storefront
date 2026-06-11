@@ -20,6 +20,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
         <meta name="facebook-domain-verification" content="dgks0x65cipiwfkol78wzthzxexvq2" />
+        <meta name="facebook-domain-verification" content="mqpxeezrme66boz13z22trmw1lgg10" />
         {/* Meta Pixel */}
         <script
           dangerouslySetInnerHTML={{
