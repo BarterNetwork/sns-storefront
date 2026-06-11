@@ -3,7 +3,7 @@ import { supabase, supabaseAdmin } from "@/lib/supabase";
 
 const MARKUP = 1.5;
 const BASE_URL = "https://tshirtdepot.barternetworkokc.com";
-const PAGE_SIZE = 5000;
+const PAGE_SIZE = 1000;
 
 function stripHtml(html: string | null): string {
   if (!html) return "";
