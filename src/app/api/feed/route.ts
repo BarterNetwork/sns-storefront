@@ -5,6 +5,24 @@ const MARKUP = 1.5;
 const BASE_URL = "https://tshirtdepot.barternetworkokc.com";
 const PAGE_SIZE = 1000;
 
+// Map base_category to Google product category IDs
+const GOOGLE_CATEGORY: Record<string, string> = {
+  "T-Shirts - Premium":    "212",
+  "T-Shirts - Core":       "212",
+  "T-Shirts - Long Sleeve":"212",
+  "Hoodies & Sweatshirts": "213",
+  "Headwear":              "178",
+  "Bags":                  "6",
+  "Bottoms":               "207",
+  "Outerwear":             "213",
+  "Accessories":           "167",
+  "Wovens":                "212",
+  "Knits & Layering":      "213",
+  "Youth":                 "212",
+  "Infant & Toddler":      "212",
+  "Tank Tops":             "212",
+};
+
 function stripHtml(html: string | null): string {
   if (!html) return "";
   return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 5000);
@@ -104,8 +122,9 @@ export async function GET(req: NextRequest) {
       <g:price>${price} USD</g:price>
       <g:brand>${esc(s.brandName)}</g:brand>
       <g:condition>new</g:condition>
-      <g:google_product_category>212</g:google_product_category>
-      <g:custom_label_0>${esc(s.baseCategory)}</g:custom_label_0>
+      <g:google_product_category>${GOOGLE_CATEGORY[s.baseCategory] || "212"}</g:google_product_category>
+      <g:product_type>${esc(s.baseCategory || "Apparel")}</g:product_type>
+      <g:custom_label_0>${esc(s.baseCategory || "")}</g:custom_label_0>
     </item>`);
     }
 
