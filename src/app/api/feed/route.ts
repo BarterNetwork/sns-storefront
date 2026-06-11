@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
 
     // Fetch all styles
     const styles = await fetchAll(admin, "styles",
-      "styleID, brandName, title, styleName, description, styleImage"
+      "styleID, brandName, title, styleName, description, styleImage, baseCategory"
     );
 
     // Fetch all pricing + stock
@@ -105,6 +105,7 @@ export async function GET(req: NextRequest) {
       <g:brand>${esc(s.brandName)}</g:brand>
       <g:condition>new</g:condition>
       <g:google_product_category>212</g:google_product_category>
+      <g:custom_label_0>${esc(s.baseCategory)}</g:custom_label_0>
     </item>`);
     }
 
