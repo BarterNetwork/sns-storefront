@@ -131,7 +131,7 @@ export default function ProductDetailPage() {
           <div className="main-img-wrap">
             {img ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={img} alt={style.title} className="main-img" />
+              <img key={img} src={img} alt={style.title} className="main-img" />
             ) : (
               <div className="img-placeholder">{style.brandName[0]}</div>
             )}
