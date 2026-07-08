@@ -4,8 +4,13 @@ export async function GET(req: NextRequest) {
   const url = req.nextUrl.searchParams.get("url");
   if (!url) return NextResponse.json({ error: "No URL" }, { status: 400 });
 
-  // Only allow S&S Activewear images
-  if (!url.startsWith("https://www.ssactivewear.com/")) {
+  // Only allow known apparel image CDNs
+  const allowed = [
+    "https://www.ssactivewear.com/",
+    "https://cdnm.sanmar.com/",
+    "https://cdn.sanmar.com/",
+  ];
+  if (!allowed.some(prefix => url.startsWith(prefix))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

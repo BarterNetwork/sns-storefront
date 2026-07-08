@@ -16,7 +16,7 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <link
-          href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&family=Oswald:wght@400;600&family=Anton&family=Black+Ops+One&family=Righteous&family=Pacifico&family=Dancing+Script:wght@700&family=Great+Vibes&family=Lobster&family=Satisfy&family=Permanent+Marker&family=Rock+Salt&family=Montserrat:wght@400;700&family=Raleway:wght@400;700&family=Poppins:wght@400;700&family=Playfair+Display:wght@700&family=Abril+Fatface&family=Alfa+Slab+One&family=Creepster&family=Boogaloo&family=Fredericka+the+Great&family=Russo+One&family=Teko:wght@600&family=Orbitron:wght@700&display=swap"
           rel="stylesheet"
         />
         <meta name="facebook-domain-verification" content="dgks0x65cipiwfkol78wzthzxexvq2" />
