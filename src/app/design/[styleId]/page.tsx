@@ -65,6 +65,19 @@ export default function DesignPage() {
   const [selectedObj, setSelectedObj] = useState<any>(null);
   const [canvasReady, setCanvasReady] = useState(false);
 
+  // Print zones
+  const [printFront, setPrintFront] = useState(true);
+  const [printBack, setPrintBack] = useState(false);
+  const [printLeftSleeve, setPrintLeftSleeve] = useState(false);
+  const [printRightSleeve, setPrintRightSleeve] = useState(false);
+
+  // Pricing constants
+  const PRINT_FRONT = 15;
+  const PRINT_BACK = 5;
+  const PRINT_SLEEVE = 3;
+  const REBATE_THRESHOLD = 200;
+  const REBATE_AMOUNT = 50;
+
   const fonts = ["Arial", "Georgia", "Impact", "Courier New", "Trebuchet MS", "Bebas Neue", "Pacifico", "Oswald"];
 
   // Load product data
@@ -246,6 +259,13 @@ export default function DesignPage() {
       const canvas = fabricRef.current;
       const mockupDataUrl = canvas?.toDataURL({ format: "png", multiplier: 2 }) ?? null;
 
+      const printZones = [
+        printFront && "Front",
+        printBack && "Back",
+        printLeftSleeve && "Left Sleeve",
+        printRightSleeve && "Right Sleeve",
+      ].filter(Boolean).join(", ");
+
       const res = await fetch("/api/inquiries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -258,9 +278,14 @@ export default function DesignPage() {
           size: activeSize.sizeName,
           sku: activeSize.sku,
           qty,
-          price_per: activeSize.piecePrice,
+          garment_price: garmentPrice,
+          print_fee: printFee,
+          price_per: pricePerPiece,
+          order_total: orderTotal,
+          barter_bucks_rebate: rebatesEarned,
+          print_zones: printZones,
           design_mockup: mockupDataUrl,
-          note: `Custom design order — ${view} view`,
+          note: `Custom design order — Print locations: ${printZones}`,
         }),
       });
 
@@ -274,7 +299,17 @@ export default function DesignPage() {
   };
 
   const sizes = activeColor?.sizes ?? ([] as Size[]);
-  const price = activeSize?.piecePrice ?? sizes[0]?.piecePrice ?? null;
+  const garmentPrice = activeSize?.piecePrice ?? sizes[0]?.piecePrice ?? null;
+
+  const printFee =
+    (printFront ? PRINT_FRONT : 0) +
+    (printBack ? PRINT_BACK : 0) +
+    (printLeftSleeve ? PRINT_SLEEVE : 0) +
+    (printRightSleeve ? PRINT_SLEEVE : 0);
+
+  const pricePerPiece = garmentPrice != null ? garmentPrice + printFee : null;
+  const orderTotal = pricePerPiece != null ? pricePerPiece * qty : null;
+  const rebatesEarned = orderTotal != null ? Math.floor(orderTotal / REBATE_THRESHOLD) * REBATE_AMOUNT : 0;
 
   if (loading) return <div className="loading">Loading product…</div>;
   if (error || !style) return <div className="loading error">{error || "Product not found"}</div>;
@@ -396,6 +431,32 @@ export default function DesignPage() {
         {/* Right panel — order */}
         <div className="panel">
           <section className="tool-section">
+            <p className="tool-label">Print Locations</p>
+            <div className="zone-list">
+              <label className="zone-row">
+                <input type="checkbox" checked={printFront} onChange={e => setPrintFront(e.target.checked)} />
+                <span>Front</span>
+                <span className="zone-price">+${PRINT_FRONT}</span>
+              </label>
+              <label className="zone-row">
+                <input type="checkbox" checked={printBack} onChange={e => setPrintBack(e.target.checked)} />
+                <span>Back</span>
+                <span className="zone-price">+${PRINT_BACK}</span>
+              </label>
+              <label className="zone-row">
+                <input type="checkbox" checked={printLeftSleeve} onChange={e => setPrintLeftSleeve(e.target.checked)} />
+                <span>Left Sleeve</span>
+                <span className="zone-price">+${PRINT_SLEEVE}</span>
+              </label>
+              <label className="zone-row">
+                <input type="checkbox" checked={printRightSleeve} onChange={e => setPrintRightSleeve(e.target.checked)} />
+                <span>Right Sleeve</span>
+                <span className="zone-price">+${PRINT_SLEEVE}</span>
+              </label>
+            </div>
+          </section>
+
+          <section className="tool-section">
             <p className="tool-label">Size</p>
             <div className="size-grid">
               {sizes.map(s => (
@@ -420,11 +481,23 @@ export default function DesignPage() {
             </div>
           </section>
 
-          {price && (
+          {pricePerPiece != null && (
             <section className="tool-section">
-              <p className="tool-label">Price</p>
-              <p className="price">${(price * qty).toFixed(2)}</p>
-              <p className="price-note">${price.toFixed(2)} × {qty} {qty === 1 ? "piece" : "pieces"}</p>
+              <p className="tool-label">Price Breakdown</p>
+              <div className="breakdown">
+                <div className="breakdown-row"><span>Garment</span><span>${garmentPrice?.toFixed(2)}</span></div>
+                {printFront && <div className="breakdown-row"><span>Front print</span><span>+${PRINT_FRONT}.00</span></div>}
+                {printBack && <div className="breakdown-row"><span>Back print</span><span>+${PRINT_BACK}.00</span></div>}
+                {printLeftSleeve && <div className="breakdown-row"><span>Left sleeve</span><span>+${PRINT_SLEEVE}.00</span></div>}
+                {printRightSleeve && <div className="breakdown-row"><span>Right sleeve</span><span>+${PRINT_SLEEVE}.00</span></div>}
+                <div className="breakdown-row total"><span>Per piece</span><span>${pricePerPiece.toFixed(2)}</span></div>
+                {qty > 1 && <div className="breakdown-row total"><span>Total ({qty} pcs)</span><span>${orderTotal?.toFixed(2)}</span></div>}
+              </div>
+              {rebatesEarned > 0 && (
+                <div className="rebate-badge">
+                  🎉 You earn <strong>${rebatesEarned} in Barter Bucks</strong> on this order!
+                </div>
+              )}
             </section>
           )}
 
@@ -514,6 +587,19 @@ export default function DesignPage() {
 
         .canvas-wrap { background: #111; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
         .canvas-loading { position: absolute; color: #555; font-size: 0.85rem; }
+
+        .zone-list { display: flex; flex-direction: column; gap: 0.5rem; }
+        .zone-row { display: flex; align-items: center; gap: 0.5rem; font-size: 0.82rem; color: #ccc; cursor: pointer; }
+        .zone-row input { accent-color: #e8c97e; width: 14px; height: 14px; cursor: pointer; }
+        .zone-row span:nth-child(2) { flex: 1; }
+        .zone-price { color: #888; font-size: 0.75rem; }
+
+        .breakdown { display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.75rem; }
+        .breakdown-row { display: flex; justify-content: space-between; font-size: 0.78rem; color: #888; }
+        .breakdown-row.total { color: #f0ede8; font-weight: 700; border-top: 1px solid #2a2a2a; padding-top: 0.3rem; margin-top: 0.2rem; }
+
+        .rebate-badge { background: #e8c97e12; border: 1px solid #e8c97e33; border-radius: 8px; padding: 0.6rem 0.75rem; font-size: 0.78rem; color: #e8c97e; text-align: center; }
+        .rebate-badge strong { font-weight: 700; }
 
         .hint { font-size: 0.72rem; color: #555; margin: 0.4rem 0 0; text-align: center; }
         .err { font-size: 0.75rem; color: #c87e7e; margin: 0.4rem 0 0; }

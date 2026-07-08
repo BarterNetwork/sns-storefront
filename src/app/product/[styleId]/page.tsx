@@ -190,7 +190,19 @@ export default function ProductDetailPage() {
                   >
                     {c.swatchImage ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={c.swatchImage} alt={c.colorName} className="swatch-img" />
+                      <img
+                        src={c.swatchImage}
+                        alt={c.colorName}
+                        className="swatch-img"
+                        onError={e => {
+                          const el = e.currentTarget;
+                          el.style.display = "none";
+                          const dot = document.createElement("span");
+                          dot.className = "swatch-dot";
+                          dot.style.background = c.colorHex || "#555";
+                          el.parentElement?.appendChild(dot);
+                        }}
+                      />
                     ) : (
                       <span
                         className="swatch-dot"
