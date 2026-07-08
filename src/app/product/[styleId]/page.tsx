@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import InquiryModal from "@/components/InquiryModal";
+import { useCart } from "@/context/CartContext";
 
 interface Size {
   sku: string;
@@ -50,6 +51,9 @@ export default function ProductDetailPage() {
   const [activeImg, setActiveImg] = useState<"front" | "back" | "model">("front");
   const [showInquiry, setShowInquiry] = useState(false);
   const [buyError, setBuyError] = useState("");
+  const [cartQty, setCartQty] = useState(1);
+  const [addedMsg, setAddedMsg] = useState(false);
+  const { addItem, openCart, count: cartItemCount } = useCart();
 
   useEffect(() => {
     fetch(`/api/products/${styleId}`)
@@ -82,28 +86,37 @@ export default function ProductDetailPage() {
   if (error || !style) return <div className="loading error">{error || "Product not found"}</div>;
 
   const img = activeColor
-    ? (activeImg === "back" ? activeColor.backImage : activeImg === "model" ? activeColor.modelImage : activeColor.frontImage) || activeColor.frontImage
+    ? (activeImg === "back"
+        ? (activeColor.backImage || style.styleImage)
+        : activeImg === "model"
+          ? (activeColor.modelImage || style.styleImage)
+          : (activeColor.frontImage || style.styleImage))
     : style.styleImage;
 
   const price = activeSize?.piecePrice ?? activeColor?.sizes[0]?.piecePrice ?? null;
   const inStock = activeSize ? activeSize.qtyTotal > 0 : (activeColor?.sizes.some(s => s.qtyTotal > 0) ?? false);
 
-  const handleBuy = () => {
-    if (!price) { setBuyError("Unable to determine price. Please try again."); return; }
+  const handleAddToCart = () => {
+    if (!activeColor) { setBuyError("Please select a color."); return; }
+    if (!activeSize)  { setBuyError("Please select a size."); return; }
+    if (!price)       { setBuyError("Unable to determine price."); return; }
+    setBuyError("");
 
-    const base = process.env.NEXT_PUBLIC_BARTER_NETWORK_URL || "https://barternetworkokc.com";
-    const params = new URLSearchParams({
-      title:       style?.title || style?.styleName || "Apparel Order",
-      brand:       style?.brandName || "",
-      color:       activeColor?.colorName || "",
-      size:        activeSize?.sizeName || "",
-      sku:         activeSize?.sku || "",
-      price_cents: String(Math.round(price * 100)),
-      style_id:    String(style?.styleID || ""),
-      image:       activeColor?.frontImage || style?.styleImage || "",
+    addItem({
+      sku:       activeSize.sku,
+      styleId:   style!.styleID,
+      brandName: style!.brandName,
+      title:     style!.title || style!.styleName,
+      styleName: style!.styleName,
+      colorName: activeColor.colorName,
+      sizeName:  activeSize.sizeName,
+      price,
+      qty:       cartQty,
+      image:     activeColor.frontImage || style!.styleImage || null,
     });
 
-    window.location.href = `${base}/checkout/apparel?${params}`;
+    setAddedMsg(true);
+    setTimeout(() => setAddedMsg(false), 2500);
   };
 
   const inquiryProduct = {
@@ -123,6 +136,13 @@ export default function ProductDetailPage() {
       <div className="breadcrumb">
         <a href="/" className="back-link">← Back to catalog</a>
         {style.baseCategory && <span className="bc-sep">/ {style.baseCategory}</span>}
+        <button className="breadcrumb-cart" onClick={openCart} aria-label="Open cart">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+          </svg>
+          {cartItemCount > 0 && <span className="bc-cart-count">{cartItemCount}</span>}
+        </button>
       </div>
 
       <div className="layout">
@@ -139,12 +159,10 @@ export default function ProductDetailPage() {
             {style.sustainable && <span className="badge-eco">♻ Eco</span>}
           </div>
 
-          {/* View toggles */}
-          {activeColor && (
+          {/* View toggles — only show when multiple distinct views exist */}
+          {activeColor && (activeColor.backImage || activeColor.modelImage) && (
             <div className="view-tabs">
-              {activeColor.frontImage && (
-                <button className={`view-tab ${activeImg === "front" ? "active" : ""}`} onClick={() => setActiveImg("front")}>Front</button>
-              )}
+              <button className={`view-tab ${activeImg === "front" ? "active" : ""}`} onClick={() => setActiveImg("front")}>Front</button>
               {activeColor.backImage && (
                 <button className={`view-tab ${activeImg === "back" ? "active" : ""}`} onClick={() => setActiveImg("back")}>Back</button>
               )}
@@ -237,12 +255,30 @@ export default function ProductDetailPage() {
             </p>
           )}
 
-          {/* CTA */}
-          <button className="cta-btn" onClick={handleBuy}>
-            Buy with Barter Bucks →
-          </button>
+          {/* Quantity + Add to Cart */}
+          <div className="cta-row">
+            <div className="qty-selector">
+              <button className="qty-btn" onClick={() => setCartQty(q => Math.max(1, q - 1))}>−</button>
+              <span className="qty-val">{cartQty}</span>
+              <button className="qty-btn" onClick={() => setCartQty(q => q + 1)}>+</button>
+            </div>
+            <button className="cta-btn" onClick={handleAddToCart} disabled={!inStock}>
+              {addedMsg ? "Added ✓" : "Add to Cart"}
+            </button>
+          </div>
+
+          <a href={`/design/${styleId}`} className="design-btn">
+            🎨 Design This Product
+          </a>
+
+          <div style={{ display: "none" }}>
+          </div>
 
           {buyError && <p className="buy-error">{buyError}</p>}
+
+          <button className="view-cart-btn" onClick={openCart}>
+            View Cart →
+          </button>
 
           <p className="cta-note">
             Pay with Barter Bucks — no cash required.
@@ -285,6 +321,9 @@ export default function ProductDetailPage() {
         .back-link { font-size: 0.8rem; color: #666; text-decoration: none; transition: color 0.2s; }
         .back-link:hover { color: #e8c97e; }
         .bc-sep { font-size: 0.8rem; color: #444; }
+        .breadcrumb-cart { position: relative; margin-left: auto; background: none; border: 1px solid #2a2a2a; color: #888; border-radius: 6px; padding: 0.35rem 0.5rem; cursor: pointer; display: flex; align-items: center; transition: all 0.2s; }
+        .breadcrumb-cart:hover { border-color: #e8c97e; color: #e8c97e; }
+        .bc-cart-count { position: absolute; top: -6px; right: -6px; background: #e8c97e; color: #0a0a0a; font-size: 0.6rem; font-weight: 700; border-radius: 999px; min-width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; padding: 0 3px; }
 
         .layout { max-width: 1100px; margin: 0 auto; padding: 2rem; display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: start; }
 
@@ -341,8 +380,18 @@ export default function ProductDetailPage() {
         .qty-note { font-size: 0.75rem; color: #666; margin: -0.5rem 0 1.25rem; }
 
         /* CTA */
-        .cta-btn { width: 100%; padding: 1rem; background: #e8c97e; color: #0a0a0a; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: 700; cursor: pointer; font-family: inherit; letter-spacing: 0.04em; transition: background 0.2s; margin-bottom: 0.6rem; }
-        .cta-btn:hover { background: #f0d99a; }
+        .cta-row { display: flex; gap: 0.75rem; align-items: stretch; margin-bottom: 0.6rem; }
+        .qty-selector { display: flex; align-items: center; border: 1px solid #2a2a2a; border-radius: 8px; overflow: hidden; flex-shrink: 0; }
+        .qty-btn { width: 36px; height: 100%; background: transparent; border: none; color: #ccc; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: color 0.15s; padding: 0; }
+        .qty-btn:hover { color: #e8c97e; }
+        .qty-val { min-width: 32px; text-align: center; font-size: 0.9rem; font-weight: 600; color: #f0ede8; padding: 0 0.25rem; }
+        .cta-btn { flex: 1; padding: 1rem; background: #e8c97e; color: #0a0a0a; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: 700; cursor: pointer; font-family: inherit; letter-spacing: 0.04em; transition: background 0.2s; }
+        .cta-btn:hover:not(:disabled) { background: #f0d99a; }
+        .cta-btn:disabled { opacity: 0.5; cursor: default; }
+        .design-btn { display: block; width: 100%; padding: 0.7rem; background: transparent; border: 1px solid #e8c97e55; color: #e8c97e; border-radius: 8px; font-size: 0.85rem; font-weight: 600; font-family: inherit; text-align: center; text-decoration: none; transition: all 0.2s; margin-bottom: 0.6rem; box-sizing: border-box; }
+        .design-btn:hover { background: #e8c97e18; border-color: #e8c97e; }
+        .view-cart-btn { width: 100%; padding: 0.7rem; background: transparent; border: 1px solid #2a2a2a; color: #888; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.2s; margin-bottom: 0.6rem; }
+        .view-cart-btn:hover { border-color: #e8c97e; color: #e8c97e; }
         .buy-error { font-size: 0.78rem; color: #c87e7e; margin: -0.25rem 0 0.5rem; text-align: center; }
         .cta-note { font-size: 0.75rem; color: #555; text-align: center; margin: 0 0 1.5rem; }
 

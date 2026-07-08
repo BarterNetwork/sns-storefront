@@ -7,6 +7,7 @@ import ProductCard from "@/components/ProductCard";
 import CategoryNav from "@/components/CategoryNav";
 import FilterSidebar, { FilterState } from "@/components/FilterSidebar";
 import InquiryModal from "@/components/InquiryModal";
+import { useCart } from "@/context/CartContext";
 
 const CATEGORY_GROUPS = [
   "gender","bottom_type","outerwear_type","accessory_type","woven_type","knit_type",
@@ -79,6 +80,7 @@ function parseUrlFilters(sp: URLSearchParams): { baseCategory: string; filters: 
 function StorefrontInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { count: cartCount, openCart } = useCart();
 
   const { baseCategory: initCat, filters: initFilters, page: initPage } = parseUrlFilters(searchParams);
 
@@ -171,6 +173,13 @@ function StorefrontInner() {
           </form>
 
           <div className="header-tagline">Buy with Barter Bucks · Wear what you love</div>
+          <button className="cart-btn" onClick={openCart} aria-label="Open cart">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+            </svg>
+            {cartCount > 0 && <span className="cart-count">{cartCount}</span>}
+          </button>
         </div>
       </header>
 
@@ -266,6 +275,21 @@ function StorefrontInner() {
         .logo-block { display: flex; align-items: center; flex-shrink: 0; }
         .logo-img { height: 52px; width: auto; object-fit: contain; }
         .header-tagline { font-size: 0.75rem; color: #555; letter-spacing: 0.04em; margin-left: auto; }
+
+        /* Cart */
+        .cart-btn {
+          position: relative; background: none; border: 1px solid #2a2a2a;
+          color: #f0ede8; cursor: pointer; padding: 0.45rem 0.6rem; border-radius: 6px;
+          display: flex; align-items: center; flex-shrink: 0; transition: border-color 0.2s;
+        }
+        .cart-btn:hover { border-color: #e8c97e; color: #e8c97e; }
+        .cart-count {
+          position: absolute; top: -6px; right: -6px;
+          background: #e8c97e; color: #0a0a0a;
+          font-size: 0.6rem; font-weight: 700; border-radius: 999px;
+          min-width: 16px; height: 16px; display: flex; align-items: center; justify-content: center;
+          padding: 0 3px;
+        }
 
         /* Search */
         .header-search {
