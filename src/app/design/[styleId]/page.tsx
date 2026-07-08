@@ -16,6 +16,7 @@ interface Color {
   swatchImage: string | null;
   frontImage: string | null;
   backImage: string | null;
+  sizes: Size[];
 }
 
 interface Style {
