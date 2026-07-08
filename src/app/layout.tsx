@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { CartProvider } from "@/context/CartContext";
-import CartDrawer from "@/components/CartDrawer";
 
 export const metadata: Metadata = {
   title: "T-Shirt Depot & More | Wholesale Apparel",
@@ -46,12 +44,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body>
-        <CartProvider>
-          {children}
-          <CartDrawer />
-        </CartProvider>
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
