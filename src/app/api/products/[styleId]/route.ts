@@ -52,13 +52,20 @@ export async function GET(
     for (const sku of skus || []) {
       const key = sku.colorName || "Default";
       if (!colorMap[key]) {
+        // Derive back image from front image URL (stored back URLs are either
+        // hotlink-protected on ssactivewear.com or missing the year/season on cdnm.sanmar.com)
+        const front = sku.colorFrontImage as string | null;
+        const derivedBack = front?.includes("cdnm.sanmar.com")
+          ? front.replace(/_front(\.[^.]+)$/, "_back$1")
+          : null;
+
         colorMap[key] = {
           colorName:   sku.colorName,
           colorHex:    sku.colorHex,
           colorFamily: sku.colorFamily,
           swatchImage: sku.colorSwatchImage,
-          frontImage:  sku.colorFrontImage,
-          backImage:   sku.colorBackImage,
+          frontImage:  front,
+          backImage:   derivedBack,
           modelImage:  sku.colorOnModelFrontImage,
           sizes: [],
         };
