@@ -714,9 +714,7 @@ export default function DesignPage() {
         <div className="canvas-wrap">
           <div className="view-toggle">
             <button className={`view-btn ${view === "front" ? "active" : ""}`} onClick={() => setView("front")}>Front</button>
-            {activeColor?.backImage && (
-              <button className={`view-btn ${view === "back" ? "active" : ""}`} onClick={() => setView("back")}>Back</button>
-            )}
+            <button className={`view-btn ${view === "back" ? "active" : ""}`} onClick={() => setView("back")}>Back</button>
           </div>
           <canvas ref={canvasRef} />
           {!canvasReady && <div className="canvas-loading">Loading canvas…</div>}
