@@ -78,12 +78,107 @@ export default function ProductDetailPage() {
       .finally(() => setLoading(false));
   }, [styleId]);
 
-  if (loading) return <div className="loading">Loading…</div>;
+  if (loading) return (
+    <div className="page">
+      <div className="breadcrumb"><div className="sk sk-line" style={{ width: 120, height: 14 }} /></div>
+      <div className="layout">
+        <div className="images">
+          <div className="main-img-wrap sk" />
+          <div style={{ display: "flex", gap: "0.4rem", marginTop: "0.75rem" }}>
+            {[1,2,3].map(i => <div key={i} className="sk" style={{ flex: 1, height: 36, borderRadius: 6 }} />)}
+          </div>
+        </div>
+        <div className="details">
+          <div className="sk sk-line" style={{ width: 80, height: 12, marginBottom: "0.6rem" }} />
+          <div className="sk sk-line" style={{ width: "70%", height: 28, marginBottom: "0.4rem" }} />
+          <div className="sk sk-line" style={{ width: 100, height: 12, marginBottom: "1.5rem" }} />
+          <div className="sk sk-line" style={{ width: 120, height: 36, marginBottom: "1.5rem" }} />
+          <div className="sk sk-line" style={{ width: 80, height: 12, marginBottom: "0.75rem" }} />
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginBottom: "1.5rem" }}>
+            {Array.from({ length: 24 }).map((_, i) => <div key={i} className="sk" style={{ width: 34, height: 34, borderRadius: 6 }} />)}
+          </div>
+          <div className="sk sk-line" style={{ width: 60, height: 12, marginBottom: "0.75rem" }} />
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginBottom: "1.5rem" }}>
+            {["S","M","L","XL","2XL"].map(s => <div key={s} className="sk" style={{ width: 52, height: 36, borderRadius: 6 }} />)}
+          </div>
+          <div className="sk" style={{ width: "100%", height: 52, borderRadius: 8, marginBottom: "0.6rem" }} />
+          <div className="sk" style={{ width: "100%", height: 48, borderRadius: 8 }} />
+        </div>
+      </div>
+      <style jsx>{`
+        .page { min-height: 100vh; background: #0a0a0a; color: #f0ede8; font-family: 'DM Sans', sans-serif; padding-bottom: 4rem; }
+        .breadcrumb { max-width: 1100px; margin: 0 auto; padding: 1.25rem 2rem 0; }
+        .layout { max-width: 1100px; margin: 0 auto; padding: 2rem; display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: start; }
+        .images { position: sticky; top: 1.5rem; }
+        .main-img-wrap { aspect-ratio: 1; border-radius: 12px; }
+        .details { display: flex; flex-direction: column; }
+        .sk { background: linear-gradient(90deg,#161616 25%,#1e1e1e 50%,#161616 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 6px; }
+        .sk-line { display: block; }
+        @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+        @media (max-width: 768px) { .layout { grid-template-columns: 1fr; gap: 1.5rem; padding: 1rem; } .images { position: static; } }
+      `}</style>
+    </div>
+  );
   if (error || !style) return <div className="loading error">{error || "Product not found"}</div>;
 
-  const img = activeColor
+  // ssactivewear.com images are hotlink-protected — route through server-side proxy.
+  // cdnm.sanmar.com images are public CDN and can be used directly.
+  const proxied = (url: string | null | undefined) =>
+    url?.includes("ssactivewear.com")
+      ? `/api/proxy-image?url=${encodeURIComponent(url)}`
+      : (url ?? null);
+
+  // Sanmar CDN swatch URLs (cdnm.sanmar.com *_SP26.gif) return a placeholder image
+  // with HTTP 200 — onError never fires. Skip them; only use ssactivewear swatch images.
+  const validSwatch = (url: string | null) =>
+    url?.includes("ssactivewear.com") ? url : null;
+
+  // Derive approximate color from name when colorHex is absent.
+  const colorNameToHex = (name: string): string => {
+    const n = name.toLowerCase();
+    if (n.includes("white") || n.includes("ivory")) return "#f0ede8";
+    if (n.includes("cream") || n.includes("creme") || n.includes("natural")) return "#e8dfc8";
+    if (n === "black") return "#111";
+    if (n.includes("black")) return "#2a2a2a";
+    if (n.includes("charcoal")) return "#3c3c3c";
+    if (n.includes("coal")) return "#484848";
+    if (n.includes("dark grey") || n.includes("dark gray")) return "#555";
+    if (n.includes("tundra") || n.includes("stonewash") || n.includes("chambray")) return "#7a9ab5";
+    if (n.includes("silver") || n.includes("ash") || n.includes("grey") || n.includes("gray")) return "#888";
+    if (n.includes("navy")) return "#1a2848";
+    if (n.includes("royal")) return "#1a3fa0";
+    if (n.includes("cobalt")) return "#1a5fd0";
+    if (n.includes("carolina")) return "#4a8cc8";
+    if (n.includes("sky") || n.includes("powder") || n.includes("ice blue")) return "#8ab8d8";
+    if (n.includes("neptune") || n.includes("peacock")) return "#2a7a8a";
+    if (n.includes("teal") || n.includes("turquoise")) return "#1a8a8a";
+    if (n.includes("blue")) return "#2a5a9a";
+    if (n.includes("forest") || n.includes("hunter")) return "#1a4a1a";
+    if (n.includes("olive") || n.includes("drab")) return "#5a5a2a";
+    if (n.includes("sage") || n.includes("laurel") || n.includes("clover")) return "#6a8a6a";
+    if (n.includes("lime") || n.includes("safety green") || n.includes("neon green")) return "#5aaa20";
+    if (n.includes("green") || n.includes("kelly")) return "#2a7a2a";
+    if (n.includes("lemon") || n.includes("yellow")) return "#d4c040";
+    if (n.includes("gold") || n.includes("zinnia") || n.includes("sunflower")) return "#c8a000";
+    if (n.includes("orange") || n.includes("burnt")) return "#d45820";
+    if (n.includes("coral") || n.includes("salmon")) return "#e08070";
+    if (n.includes("peach") || n.includes("melon")) return "#dda888";
+    if (n.includes("hot pink") || n.includes("neon pink") || n.includes("safety pink")) return "#f020a0";
+    if (n.includes("pink") || n.includes("rose") || n.includes("flamingo") || n.includes("blossom")) return "#d88098";
+    if (n.includes("red") || n.includes("cherry") || n.includes("cardinal") || n.includes("sangria")) return "#b02020";
+    if (n.includes("maroon") || n.includes("garnet") || n.includes("burgundy") || n.includes("wine")) return "#6a1a1a";
+    if (n.includes("lavender") || n.includes("lilac")) return "#9a7ab5";
+    if (n.includes("purple") || n.includes("violet") || n.includes("iris")) return "#6a3a8a";
+    if (n.includes("plum") || n.includes("eggplant")) return "#4a1a5a";
+    if (n.includes("espresso") || n.includes("chocolate") || n.includes("brown")) return "#4a2a1a";
+    if (n.includes("tan") || n.includes("khaki") || n.includes("sand") || n.includes("adobe")) return "#b89a6a";
+    return "#666";
+  };
+
+  const rawImg = activeColor
     ? (activeImg === "back" ? activeColor.backImage : activeImg === "model" ? activeColor.modelImage : activeColor.frontImage) || activeColor.frontImage
     : style.styleImage;
+  const img = proxied(rawImg);
 
   const price = activeSize?.piecePrice ?? activeColor?.sizes[0]?.piecePrice ?? null;
   const inStock = activeSize ? activeSize.qtyTotal > 0 : (activeColor?.sizes.some(s => s.qtyTotal > 0) ?? false);
@@ -188,25 +283,15 @@ export default function ProductDetailPage() {
                     onClick={() => { setActiveColor(c); setActiveSize(null); setActiveImg("front"); }}
                     className={`swatch ${activeColor?.colorName === c.colorName ? "active" : ""}`}
                   >
-                    {c.swatchImage ? (
+                    {/* Colored dot fallback — always visible */}
+                    <span className="swatch-dot" style={{ background: c.colorHex || colorNameToHex(c.colorName) }} />
+                    {validSwatch(c.swatchImage) && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={c.swatchImage}
+                        src={`/api/proxy-image?url=${encodeURIComponent(validSwatch(c.swatchImage)!)}`}
                         alt={c.colorName}
-                        className="swatch-img"
-                        onError={e => {
-                          const el = e.currentTarget;
-                          el.style.display = "none";
-                          const dot = document.createElement("span");
-                          dot.className = "swatch-dot";
-                          dot.style.background = c.colorHex || "#555";
-                          el.parentElement?.appendChild(dot);
-                        }}
-                      />
-                    ) : (
-                      <span
-                        className="swatch-dot"
-                        style={{ background: c.colorHex || "#555" }}
+                        className="swatch-img swatch-img-over"
+                        onError={e => { e.currentTarget.style.display = "none"; }}
                       />
                     )}
                   </button>
@@ -340,10 +425,11 @@ export default function ProductDetailPage() {
 
         /* Colors */
         .color-grid { display: flex; flex-wrap: wrap; gap: 0.4rem; }
-        .swatch { width: 34px; height: 34px; border-radius: 6px; border: 2px solid transparent; overflow: hidden; cursor: pointer; padding: 0; transition: all 0.15s; background: #1a1a1a; }
+        .swatch { position: relative; width: 34px; height: 34px; border-radius: 6px; border: 2px solid transparent; overflow: hidden; cursor: pointer; padding: 0; transition: all 0.15s; background: #1a1a1a; }
         .swatch:hover { border-color: #888; transform: scale(1.08); }
         .swatch.active { border-color: #e8c97e; box-shadow: 0 0 0 1px #e8c97e44; }
         .swatch-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .swatch-img-over { position: absolute; inset: 0; border-radius: 4px; }
         .swatch-dot { display: block; width: 100%; height: 100%; border-radius: 4px; }
 
         /* Sizes */
