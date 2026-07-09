@@ -14,7 +14,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const res = await fetch(url);
+  const res = await fetch(url, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Referer": "https://www.ssactivewear.com/",
+      "Accept": "image/webp,image/apng,image/*,*/*;q=0.8",
+    },
+  });
   if (!res.ok) return NextResponse.json({ error: "Failed to fetch image" }, { status: 502 });
 
   const buffer = await res.arrayBuffer();
