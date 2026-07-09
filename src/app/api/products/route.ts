@@ -149,8 +149,18 @@ export async function GET(req: NextRequest) {
     const { data, count, error } = await query;
     if (error) throw error;
 
+    const cleanTitle = (s: string | null): string | null => {
+      if (!s) return null;
+      return s.split('').filter(c => { const n = c.charCodeAt(0); return n < 0x80 || n > 0x9F; }).join('').replace(/ {2,}/g, ' ').trim();
+    };
+    const cleaned = (data || []).map((row: any) => ({
+      ...row,
+      title:      cleanTitle(row.title)      ?? row.title,
+      style_name: cleanTitle(row.style_name) ?? row.style_name,
+    }));
+
     return NextResponse.json({
-      data,
+      data: cleaned,
       count,
       page,
       totalPages: Math.ceil((count || 0) / limit),

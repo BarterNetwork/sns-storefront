@@ -44,7 +44,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body>{children}</body>
+      <body data-gramm="false" data-gramm_editor="false" data-enable-grammarly="false">{children}</body>
     </html>
   );
 }

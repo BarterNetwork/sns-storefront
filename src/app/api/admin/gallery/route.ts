@@ -14,8 +14,9 @@ export async function GET(req: NextRequest) {
   const client = supabaseAdmin();
   const { data, error } = await client
     .from("gallery_designs")
-    .select("*")
+    .select("id, name, category, subcategory, url, created_at")
     .order("category")
+    .order("subcategory", { nullsFirst: true })
     .order("sort_order")
     .order("created_at");
 
@@ -30,6 +31,7 @@ export async function POST(req: NextRequest) {
   const file = form.get("file") as File | null;
   const name = (form.get("name") as string | null)?.trim();
   const category = (form.get("category") as string | null)?.trim() || "General";
+  const subcategory = (form.get("subcategory") as string | null)?.trim() || null;
 
   if (!file || !name) return NextResponse.json({ error: "file and name required" }, { status: 400 });
 
@@ -56,7 +58,7 @@ export async function POST(req: NextRequest) {
 
   const { data, error } = await client
     .from("gallery_designs")
-    .insert({ name, category, url: publicUrl, storage_path: path, sort_order: 0 })
+    .insert({ name, category, subcategory, url: publicUrl, storage_path: path, sort_order: 0 })
     .select()
     .single();
 

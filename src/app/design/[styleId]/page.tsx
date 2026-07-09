@@ -626,7 +626,7 @@ export default function DesignPage() {
                   <div className="design-img-grid">
                     {visibleDesigns.map(d => (
                       <button key={d.id} className="design-img-card" title={d.name} onClick={() => placeDesignImage(d.url)}>
-                        <img src={d.url} alt={d.name} />
+                        <img src={d.url} alt={d.name} loading="lazy" />
                         <p className="design-img-name">{d.name}</p>
                       </button>
                     ))}
@@ -728,7 +728,7 @@ export default function DesignPage() {
                   <span className="swatch-dot" style={{ background: c.colorHex || colorNameToHex(c.colorName) }} />
                   {validSwatch(c.swatchImage) && (
                     <img
-                      src={`/api/proxy-image?url=${encodeURIComponent(validSwatch(c.swatchImage)!)}`}
+                      src={validSwatch(c.swatchImage)!}
                       alt={c.colorName} className="swatch-img"
                       onError={e => { e.currentTarget.style.display = "none"; }} />
                   )}
@@ -845,11 +845,11 @@ export default function DesignPage() {
         .tpl-name { font-size: 0.65rem; color: #888; margin: 0; text-align: center; }
 
         /* DB design images */
-        .design-img-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; padding: 0.75rem; }
-        .design-img-card { background: #111; border: 1px solid #222; border-radius: 8px; padding: 0.4rem; cursor: pointer; transition: all 0.15s; display: flex; flex-direction: column; align-items: center; }
+        .design-img-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; padding: 0.75rem; }
+        .design-img-card { background: #111; border: 1px solid #222; border-radius: 8px; padding: 0.3rem; cursor: pointer; transition: all 0.15s; display: flex; flex-direction: column; align-items: center; }
         .design-img-card:hover { border-color: #e8c97e55; background: #151515; }
-        .design-img-card img { width: 100%; aspect-ratio: 1; object-fit: contain; border-radius: 5px; background: #1a1a1a; }
-        .design-img-name { font-size: 0.6rem; color: #888; margin: 0.3rem 0 0; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
+        .design-img-card img { width: 100%; height: 80px; object-fit: contain; border-radius: 5px; background: #1a1a1a; }
+        .design-img-name { font-size: 0.6rem; color: #888; margin: 0.25rem 0 0; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
 
         /* Tool sections */
         .tool-section { padding: 0.75rem; border-bottom: 1px solid #1a1a1a; }
@@ -927,10 +927,12 @@ export default function DesignPage() {
         .err  { font-size: 0.72rem; color: #c87e7e; margin: 0.35rem 0 0; }
 
         @media (max-width: 960px) {
-          .workspace { grid-template-columns: 1fr; height: auto; }
-          .left-panel { border-right: none; border-bottom: 1px solid #1a1a1a; }
-          .right-panel { border-left: none; border-top: 1px solid #1a1a1a; }
-          .canvas-wrap { min-height: 420px; }
+          .designer { height: auto; overflow: visible; }
+          .workspace { display: flex; flex-direction: column; height: auto; overflow: visible; }
+          .canvas-wrap { order: 1; min-height: 360px; flex-shrink: 0; }
+          .left-panel { order: 2; border-right: none; border-top: 1px solid #1a1a1a; max-height: 340px; overflow-y: auto; }
+          .right-panel { order: 3; border-left: none; border-top: 1px solid #1a1a1a; }
+          .header-actions { display: none; }
         }
       `}</style>
     </div>

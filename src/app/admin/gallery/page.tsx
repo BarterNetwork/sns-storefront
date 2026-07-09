@@ -304,8 +304,8 @@ export default function AdminGalleryPage() {
                 {subcategories.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             )}
-            <span className="result-count">{filteredDesigns.length} shown</span>
-            <button className="btn-sm" onClick={selectAll}>Select all</button>
+            <span className="result-count">{filteredDesigns.length} designs</span>
+            <button className="btn-sm" onClick={selectAll}>Select all visible</button>
             {selected.size > 0 && <button className="btn-sm" onClick={clearSelection}>Clear ({selected.size})</button>}
           </div>
 
@@ -337,46 +337,95 @@ export default function AdminGalleryPage() {
           )}
         </div>
 
-        {loadingDesigns ? <p className="muted">Loading…</p> : filteredDesigns.length === 0 ? <p className="muted">No designs.</p> : (
-          <div className="design-grid">
-            {filteredDesigns.map(d => (
-              <div
-                key={d.id}
-                className={`design-card ${selected.has(d.id) ? "selected" : ""}`}
-                onClick={() => { if (editingId !== d.id) toggleSelect(d.id); }}
-              >
-                {/* checkbox */}
-                <div className="card-check" onClick={e => { e.stopPropagation(); toggleSelect(d.id); }}>
-                  <input type="checkbox" readOnly checked={selected.has(d.id)} />
-                </div>
+        {loadingDesigns ? <p className="muted">Loading…</p> : filteredDesigns.length === 0 ? <p className="muted">No designs.</p> : (() => {
+          // Group filtered designs by category → subcategory
+          const grouped: Record<string, Record<string, Design[]>> = {};
+          for (const d of filteredDesigns) {
+            const cat = d.category;
+            const sub = d.subcategory || "";
+            if (!grouped[cat]) grouped[cat] = {};
+            if (!grouped[cat][sub]) grouped[cat][sub] = [];
+            grouped[cat][sub].push(d);
+          }
+          const sortedCats = Object.keys(grouped).sort();
 
-                <div className="design-img"><img src={d.url} alt={d.name} /></div>
-
-                {editingId === d.id ? (
-                  <div className="edit-fields" onClick={e => e.stopPropagation()}>
-                    <input className="e-input" value={editState.name} onChange={e => setEditState(s => ({ ...s, name: e.target.value }))} placeholder="Name" />
-                    <input className="e-input" value={editState.category} onChange={e => setEditState(s => ({ ...s, category: e.target.value }))} placeholder="Category" list="cat-list" />
-                    <input className="e-input" value={editState.subcategory} onChange={e => setEditState(s => ({ ...s, subcategory: e.target.value }))} placeholder="Subcategory (optional)" />
-                    <div className="edit-actions">
-                      <button className="btn-gold-sm" onClick={() => saveEdit(d.id)} disabled={saving}>{saving ? "Saving…" : "Save"}</button>
-                      <button className="btn-sm" onClick={() => setEditingId(null)}>Cancel</button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="design-info">
-                    <p className="design-name">{d.name}</p>
-                    <p className="design-meta">{d.category}{d.subcategory ? ` / ${d.subcategory}` : ""}</p>
-                  </div>
-                )}
-
-                <div className="card-actions" onClick={e => e.stopPropagation()}>
-                  <button className="action-btn" onClick={() => startEdit(d)} title="Edit">✏</button>
-                  <button className="action-btn danger" onClick={() => deleteDesign(d.id)} title="Delete">✕</button>
-                </div>
+          const DesignCard = ({ d }: { d: Design }) => (
+            <div
+              key={d.id}
+              className={`design-card ${selected.has(d.id) ? "selected" : ""}`}
+              onClick={() => { if (editingId !== d.id) toggleSelect(d.id); }}
+            >
+              <div className="card-check" onClick={e => { e.stopPropagation(); toggleSelect(d.id); }}>
+                <input type="checkbox" readOnly checked={selected.has(d.id)} />
               </div>
-            ))}
-          </div>
-        )}
+              <div className="design-img"><img src={d.url} alt={d.name} loading="lazy" /></div>
+              {editingId === d.id ? (
+                <div className="edit-fields" onClick={e => e.stopPropagation()}>
+                  <input className="e-input" value={editState.name} onChange={e => setEditState(s => ({ ...s, name: e.target.value }))} placeholder="Name" />
+                  <input className="e-input" value={editState.category} onChange={e => setEditState(s => ({ ...s, category: e.target.value }))} placeholder="Category" list="cat-list" />
+                  <input className="e-input" value={editState.subcategory} onChange={e => setEditState(s => ({ ...s, subcategory: e.target.value }))} placeholder="Subcategory (optional)" />
+                  <div className="edit-actions">
+                    <button className="btn-gold-sm" onClick={() => saveEdit(d.id)} disabled={saving}>{saving ? "Saving…" : "Save"}</button>
+                    <button className="btn-sm" onClick={() => setEditingId(null)}>Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="design-info">
+                  <p className="design-name">{d.name}</p>
+                  {d.subcategory && <p className="design-meta">{d.subcategory}</p>}
+                </div>
+              )}
+              <div className="card-actions" onClick={e => e.stopPropagation()}>
+                <button className="action-btn" onClick={() => startEdit(d)} title="Edit">✏</button>
+                <button className="action-btn danger" onClick={() => deleteDesign(d.id)} title="Delete">✕</button>
+              </div>
+            </div>
+          );
+
+          return (
+            <div className="cat-sections">
+              {sortedCats.map(cat => {
+                const subs = grouped[cat];
+                const subKeys = Object.keys(subs).sort();
+                const hasSubcats = subKeys.some(s => s !== "");
+                const catCount = Object.values(subs).flat().length;
+                return (
+                  <div key={cat} className="cat-section">
+                    <div className="cat-header">
+                      <span className="cat-title">{cat}</span>
+                      <span className="cat-count">{catCount}</span>
+                      <button className="btn-sm" style={{ marginLeft: "auto" }}
+                        onClick={() => setSelected(prev => {
+                          const s = new Set(prev);
+                          Object.values(subs).flat().forEach(d => s.add(d.id));
+                          return s;
+                        })}>Select all in {cat}</button>
+                    </div>
+
+                    {hasSubcats ? subKeys.map(sub => {
+                      const label = sub || "No subcategory";
+                      return (
+                        <div key={sub} className="subcat-section">
+                          {sub && <div className="subcat-header">
+                            <span className="subcat-title">{label}</span>
+                            <span className="cat-count">{subs[sub].length}</span>
+                          </div>}
+                          <div className="design-grid">
+                            {subs[sub].map(d => <DesignCard key={d.id} d={d} />)}
+                          </div>
+                        </div>
+                      );
+                    }) : (
+                      <div className="design-grid">
+                        {subs[""].map(d => <DesignCard key={d.id} d={d} />)}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
       </div>
 
       <style jsx>{`
@@ -442,7 +491,15 @@ export default function AdminGalleryPage() {
         .bulk-input { flex:1; min-width:160px; padding:0.38rem 0.6rem; background:#0a0a0a; border:1px solid #2a2a2a; border-radius:6px; color:#f0ede8; font-size:0.78rem; font-family:inherit; outline:none; }
         .bulk-input:focus { border-color:#e8c97e55; }
 
-        .design-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:0.75rem; max-height:70vh; overflow-y:auto; padding-right:0.5rem; }
+        .cat-sections { display:flex; flex-direction:column; gap:2rem; }
+        .cat-section { border:1px solid #1a1a1a; border-radius:12px; overflow:hidden; }
+        .cat-header { display:flex; align-items:center; gap:0.6rem; padding:0.65rem 1rem; background:#111; border-bottom:1px solid #1a1a1a; }
+        .cat-title { font-size:0.9rem; font-weight:700; color:#f0ede8; }
+        .cat-count { font-size:0.72rem; color:#555; background:#1a1a1a; padding:0.15rem 0.45rem; border-radius:999px; }
+        .subcat-section { border-top:1px solid #111; }
+        .subcat-header { display:flex; align-items:center; gap:0.5rem; padding:0.4rem 1rem; background:#0d0d0d; border-bottom:1px solid #111; }
+        .subcat-title { font-size:0.75rem; font-weight:600; color:#888; }
+        .design-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:0.75rem; padding:0.75rem; }
         .design-grid::-webkit-scrollbar { width:4px; }
         .design-grid::-webkit-scrollbar-thumb { background:#2a2a2a; border-radius:999px; }
 

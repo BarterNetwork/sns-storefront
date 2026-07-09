@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { useRouter } from "next/navigation";
 import ProductCard from "@/components/ProductCard";
 import CategoryNav from "@/components/CategoryNav";
 import FilterSidebar, { FilterState } from "@/components/FilterSidebar";
@@ -76,15 +75,18 @@ function parseUrlFilters(sp: URLSearchParams): { baseCategory: string; filters: 
   };
 }
 
+const DEFAULT_FILTERS: FilterState = {
+  search: "", brand: "", minPrice: "", maxPrice: "",
+  inStock: true, sustainable: false, newStyle: false, categories: {},
+};
+
 function StorefrontInner() {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
-  const { baseCategory: initCat, filters: initFilters, page: initPage } = parseUrlFilters(searchParams);
-
-  const [baseCategory, setBaseCategory] = useState(initCat);
-  const [filters, setFilters] = useState<FilterState>(initFilters);
-  const [page, setPage] = useState(initPage);
+  const [initialized, setInitialized] = useState(false);
+  const [baseCategory, setBaseCategory] = useState("");
+  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
+  const [page, setPage] = useState(1);
 
   const [products, setProducts] = useState<any[]>([]);
   const [count, setCount] = useState(0);
@@ -92,41 +94,70 @@ function StorefrontInner() {
   const [loading, setLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [groups, setGroups] = useState<any>({});
-  const [searchInput, setSearchInput] = useState(initFilters.search);
+  const [searchInput, setSearchInput] = useState("");
 
-  // Push URL when filters change
+  // Read URL params on mount — avoids useSearchParams() which causes Suspense flash
+  useEffect(() => {
+    const parsed = parseUrlFilters(new URLSearchParams(window.location.search));
+    setBaseCategory(parsed.baseCategory);
+    setFilters(parsed.filters);
+    setPage(parsed.page);
+    setSearchInput(parsed.filters.search);
+    setInitialized(true);
+  }, []);
+
+  // Push URL when filters change (skip before initialization)
   const isFirst = useRef(true);
   useEffect(() => {
+    if (!initialized) return;
     if (isFirst.current) { isFirst.current = false; return; }
     router.replace(buildPageUrl(filters, baseCategory, page), { scroll: false });
-  }, [filters, baseCategory, page]);
+  }, [filters, baseCategory, page, initialized]);
 
-  // Fetch products whenever filters, category, or page change
+  // Fetch products whenever filters, category, or page change (skip before initialization)
   useEffect(() => {
+    if (!initialized) return;
     let cancelled = false;
-    setLoading(true);
-    fetch(buildApiUrl(filters, baseCategory, page))
+    const apiUrl = buildApiUrl(filters, baseCategory, page);
+
+    // Show cached results instantly if available for this exact query
+    try {
+      const cached = localStorage.getItem("catalog:" + apiUrl);
+      if (cached) {
+        const { data, count, totalPages } = JSON.parse(cached);
+        setProducts(data || []);
+        setCount(count || 0);
+        setTotalPages(totalPages || 1);
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
+    } catch { setLoading(true); }
+
+    fetch(apiUrl)
       .then(r => r.json())
       .then(json => {
         if (cancelled) return;
         setProducts(json.data || []);
         setCount(json.count || 0);
         setTotalPages(json.totalPages || 1);
+        setLoading(false);
+        try { localStorage.setItem("catalog:" + apiUrl, JSON.stringify({ data: json.data, count: json.count, totalPages: json.totalPages })); } catch {}
       })
       .catch(() => {
-        if (!cancelled) setProducts([]);
-      })
-      .finally(() => { if (!cancelled) setLoading(false); });
+        if (!cancelled) setLoading(false);
+      });
     return () => { cancelled = true; };
-  }, [filters, baseCategory, page]);
+  }, [filters, baseCategory, page, initialized]);
 
-  // Fetch filter groups when baseCategory changes
+  // Fetch filter groups when baseCategory changes (skip before initialization)
   useEffect(() => {
+    if (!initialized) return;
     const url = baseCategory
       ? `/api/categories?baseCategory=${encodeURIComponent(baseCategory)}`
       : `/api/categories`;
     fetch(url).then(r => r.json()).then(d => setGroups(d.groups || {}));
-  }, [baseCategory]);
+  }, [baseCategory, initialized]);
 
   // Reset page when filters/category change
   const updateFilters = (f: FilterState) => { setFilters(f); setPage(1); };
@@ -343,23 +374,6 @@ function StorefrontInner() {
   );
 }
 
-function StorefrontShell() {
-  return (
-    <div style={{ minHeight: "100vh", background: "#0a0a0a" }}>
-      <header style={{ borderBottom: "1px solid #1a1a1a", padding: "1rem 2rem" }}>
-        <div style={{ maxWidth: 1400, margin: "0 auto" }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="T-Shirt Depot & More" width={52} height={52} style={{ height: 52, width: 52, objectFit: "contain", display: "block" }} />
-        </div>
-      </header>
-    </div>
-  );
-}
-
 export default function StorefrontPage() {
-  return (
-    <Suspense fallback={<StorefrontShell />}>
-      <StorefrontInner />
-    </Suspense>
-  );
+  return <StorefrontInner />;
 }

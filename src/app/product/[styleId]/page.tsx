@@ -288,7 +288,7 @@ export default function ProductDetailPage() {
                     {validSwatch(c.swatchImage) && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={`/api/proxy-image?url=${encodeURIComponent(validSwatch(c.swatchImage)!)}`}
+                        src={validSwatch(c.swatchImage)!}
                         alt={c.colorName}
                         className="swatch-img swatch-img-over"
                         onError={e => { e.currentTarget.style.display = "none"; }}

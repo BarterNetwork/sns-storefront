@@ -26,6 +26,15 @@ export async function GET(
       return NextResponse.json({ error: "Style not found" }, { status: 404 });
     }
 
+        // Strip Windows-1252 C1 control chars (0x80-0x9F) that show as squares.
+    // Filter by char code to avoid regex encoding issues.
+    const cleanTitle = (s: string | null): string | null => {
+      if (!s) return null;
+      return s.split('').filter(c => { const n = c.charCodeAt(0); return n < 0x80 || n > 0x9F; }).join('').replace(/ {2,}/g, ' ').trim();
+    };
+    style.title     = cleanTitle(style.title)     ?? style.title;
+    style.styleName = cleanTitle(style.styleName) ?? style.styleName;
+
     // Fetch all active SKUs for this style
     const { data: skus, error: skuErr } = await supabase
       .from("products")
@@ -52,12 +61,14 @@ export async function GET(
     for (const sku of skus || []) {
       const key = sku.colorName || "Default";
       if (!colorMap[key]) {
-        // Derive back image from front image URL (stored back URLs are either
-        // hotlink-protected on ssactivewear.com or missing the year/season on cdnm.sanmar.com)
         const front = sku.colorFrontImage as string | null;
-        const derivedBack = front?.includes("cdnm.sanmar.com")
-          ? front.replace(/_front(\.[^.]+)$/, "_back$1")
-          : null;
+        const storedBack = sku.colorBackImage as string | null;
+        // cdnm.sanmar.com back URLs are stored without the year/season segment — derive
+        // from the front URL which has it. ssactivewear.com back URLs are hotlink-protected
+        // for direct <img> use but load correctly through the server-side proxy, so keep them.
+        const backImage = front?.includes("cdnm.sanmar.com")
+          ? front.replace(/_Front/g, "_Back").replace(/_front/g, "_back")
+          : storedBack;
 
         colorMap[key] = {
           colorName:   sku.colorName,
@@ -65,7 +76,7 @@ export async function GET(
           colorFamily: sku.colorFamily,
           swatchImage: sku.colorSwatchImage,
           frontImage:  front,
-          backImage:   derivedBack,
+          backImage,
           modelImage:  sku.colorOnModelFrontImage,
           sizes: [],
         };

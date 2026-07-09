@@ -181,6 +181,14 @@ export default function ProductCard({ product, onInquire }: Props) {
         }
         .card-name-link { text-decoration: none; color: inherit; display: block; }
         .card-name-link:hover .card-name { color: #e8c97e; }
+        .btn-inquire-link {
+          display: block; width: 100%; margin-top: 0.75rem; padding: 0.55rem;
+          background: #e8c97e18; border: 1px solid #e8c97e55; color: #e8c97e;
+          border-radius: 6px; font-size: 0.78rem; font-weight: 600;
+          text-align: center; text-decoration: none; letter-spacing: 0.03em;
+          transition: background 0.2s, border-color 0.2s; box-sizing: border-box;
+        }
+        .btn-inquire-link:hover { background: #e8c97e30; border-color: #e8c97e; }
         .btn-view-link {
           background: #e8c97e;
           color: #0a0a0a;

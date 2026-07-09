@@ -3,8 +3,10 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { getStyles, getProducts, getInventory } from "@/lib/sns-api";
 
 const IMG = "https://www.ssactivewear.com/";
+// S&S API returns relative paths for ssactivewear.com images and full URLs for
+// Sanmar CDN images — only prepend base URL for relative paths.
 const img = (path: string | null | undefined) =>
-  path ? `${IMG}${path}` : null;
+  path ? (path.startsWith("http") ? path : `${IMG}${path}`) : null;
 
 /**
  * POST /api/sync
