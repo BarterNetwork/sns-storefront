@@ -185,16 +185,28 @@ export default function ProductDetailPage() {
   const inStock = activeSize ? activeSize.qtyTotal > 0 : (activeColor?.sizes.some(s => s.qtyTotal > 0) ?? false);
 
   const handleBuy = () => {
-    if (!price) { setBuyError("Unable to determine price. Please try again."); return; }
+    const sizes = activeColor?.sizes ?? [];
+    const totalQty = sizes.reduce((sum, s) => sum + (sizeQtys[s.sku] ?? 0), 0);
+    if (totalQty === 0) { setBuyError("Please enter a quantity for at least one size."); return; }
+
+    const orderTotal = sizes.reduce((sum, s) => {
+      const q = sizeQtys[s.sku] ?? 0;
+      return q > 0 ? sum + s.piecePrice * q : sum;
+    }, 0);
+    const sizeSummary = sizes
+      .filter(s => (sizeQtys[s.sku] ?? 0) > 0)
+      .map(s => `${s.sizeName}×${sizeQtys[s.sku]}`)
+      .join(", ");
+    const firstSku = sizes.find(s => (sizeQtys[s.sku] ?? 0) > 0)?.sku || "";
 
     const base = process.env.NEXT_PUBLIC_BARTER_NETWORK_URL || "https://barternetworkokc.com";
     const params = new URLSearchParams({
       title:       style?.title || style?.styleName || "Apparel Order",
       brand:       style?.brandName || "",
       color:       activeColor?.colorName || "",
-      size:        activeSize?.sizeName || "",
-      sku:         activeSize?.sku || "",
-      price_cents: String(Math.round(price * 100)),
+      size:        sizeSummary,
+      sku:         firstSku,
+      price_cents: String(Math.round(orderTotal * 100)),
       style_id:    String(style?.styleID || ""),
       image:       activeColor?.frontImage || style?.styleImage || "",
     });
@@ -338,7 +350,7 @@ export default function ProductDetailPage() {
 
           {/* CTA */}
           <button className="cta-btn" onClick={handleBuy}>
-            Buy with Barter Bucks →
+            Checkout →
           </button>
 
           <a href={`/design/${styleId}`} className="design-btn">
