@@ -47,6 +47,7 @@ export default function ProductDetailPage() {
 
   const [activeColor, setActiveColor] = useState<Color | null>(null);
   const [activeSize, setActiveSize] = useState<Size | null>(null);
+  const [sizeQtys, setSizeQtys] = useState<Record<string, number>>({});
   const [activeImg, setActiveImg] = useState<"front" | "back" | "model">("front");
   const [showInquiry, setShowInquiry] = useState(false);
   const [buyError, setBuyError] = useState("");
@@ -280,7 +281,7 @@ export default function ProductDetailPage() {
                   <button
                     key={c.colorName}
                     title={c.colorName}
-                    onClick={() => { setActiveColor(c); setActiveSize(null); setActiveImg("front"); }}
+                    onClick={() => { setActiveColor(c); setActiveSize(null); setSizeQtys({}); setActiveImg("front"); }}
                     className={`swatch ${activeColor?.colorName === c.colorName ? "active" : ""}`}
                   >
                     {/* Colored dot fallback — always visible */}
@@ -300,39 +301,40 @@ export default function ProductDetailPage() {
             </div>
           )}
 
-          {/* Size picker */}
-          {activeColor && activeColor.sizes.length > 0 && (
-            <div className="section">
-              <p className="section-label">Size</p>
-              <div className="size-grid">
-                {activeColor.sizes.map(s => {
-                  const isActive = activeSize?.sku === s.sku;
-                  const oos = s.qtyTotal === 0;
-                  return (
-                    <button
-                      key={s.sku}
-                      disabled={oos}
-                      onClick={() => setActiveSize(isActive ? null : s)}
-                      className={`size-btn ${isActive ? "active" : ""} ${oos ? "oos" : ""}`}
-                    >
-                      {s.sizeName}
-                      {oos && <span className="oos-line" />}
-                    </button>
-                  );
-                })}
+          {/* Size & quantity picker */}
+          {activeColor && activeColor.sizes.length > 0 && (() => {
+            const totalQty = activeColor.sizes.reduce((sum, s) => sum + (sizeQtys[s.sku] ?? 0), 0);
+            return (
+              <div className="section">
+                <p className="section-label">Sizes &amp; Quantities</p>
+                <div className="size-qty-table">
+                  {activeColor.sizes.map(s => {
+                    const oos = s.qtyTotal === 0;
+                    return (
+                      <div key={s.sku} className={`sqrow ${oos ? "sqoos" : ""}`}>
+                        <span className="sq-name">{s.sizeName}</span>
+                        <span className="sq-price">${s.piecePrice.toFixed(2)}</span>
+                        {oos
+                          ? <span className="sq-oos">Out of stock</span>
+                          : <input
+                              type="number" min={0} max={999}
+                              value={sizeQtys[s.sku] ?? 0}
+                              onChange={e => setSizeQtys(p => ({ ...p, [s.sku]: Math.max(0, parseInt(e.target.value) || 0) }))}
+                              className="sq-input"
+                            />
+                        }
+                      </div>
+                    );
+                  })}
+                </div>
+                {totalQty > 0 && (
+                  <p className="qty-note" style={{marginTop:"0.5rem"}}>
+                    {totalQty} piece{totalQty !== 1 ? "s" : ""} selected
+                  </p>
+                )}
               </div>
-            </div>
-          )}
-
-          {/* Quantity info */}
-          {activeSize && (
-            <p className="qty-note">
-              {activeSize.qtyTotal > 0
-                ? `${activeSize.qtyTotal.toLocaleString()} units available`
-                : "Out of stock"}
-              {activeSize.closeout && " · Closeout"}
-            </p>
-          )}
+            );
+          })()}
 
           {/* CTA */}
           <button className="cta-btn" onClick={handleBuy}>
@@ -432,13 +434,15 @@ export default function ProductDetailPage() {
         .swatch-img-over { position: absolute; inset: 0; border-radius: 4px; }
         .swatch-dot { display: block; width: 100%; height: 100%; border-radius: 4px; }
 
-        /* Sizes */
-        .size-grid { display: flex; flex-wrap: wrap; gap: 0.4rem; }
-        .size-btn { padding: 0.45rem 0.85rem; border: 1px solid #2a2a2a; background: transparent; color: #ccc; font-size: 0.8rem; border-radius: 6px; cursor: pointer; font-family: inherit; transition: all 0.15s; position: relative; }
-        .size-btn:hover:not(:disabled) { border-color: #e8c97e; color: #e8c97e; }
-        .size-btn.active { border-color: #e8c97e; background: #e8c97e18; color: #e8c97e; }
-        .size-btn.oos { color: #444; border-color: #1e1e1e; cursor: default; }
-        .oos-line { position: absolute; top: 50%; left: 10%; width: 80%; height: 1px; background: #444; transform: rotate(-15deg); pointer-events: none; }
+        /* Sizes & Quantities */
+        .size-qty-table { display: flex; flex-direction: column; gap: 0.25rem; }
+        .sqrow { display: grid; grid-template-columns: 3.5rem 1fr 5rem; align-items: center; gap: 0.5rem; padding: 0.4rem 0.6rem; border-radius: 7px; border: 1px solid #1e1e1e; background: #111; }
+        .sqrow.sqoos { opacity: 0.35; }
+        .sq-name { font-size: 0.82rem; font-weight: 700; color: #ccc; }
+        .sq-price { font-size: 0.75rem; color: #666; }
+        .sq-input { width: 100%; padding: 0.35rem 0.4rem; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 5px; color: #f0ede8; font-size: 0.85rem; text-align: center; font-family: inherit; box-sizing: border-box; }
+        .sq-input:focus { outline: none; border-color: #e8c97e55; }
+        .sq-oos { font-size: 0.7rem; color: #555; text-align: right; }
 
         .qty-note { font-size: 0.75rem; color: #666; margin: -0.5rem 0 1.25rem; }
 

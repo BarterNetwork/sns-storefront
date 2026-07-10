@@ -203,8 +203,9 @@ export default function DesignPage() {
   const [style,       setStyle]       = useState<Style | null>(null);
   const [colors,      setColors]      = useState<Color[]>([]);
   const [activeColor, setActiveColor] = useState<Color | null>(null);
-  const [activeSize,  setActiveSize]  = useState<Size  | null>(null);
+  const [sizeQtys,    setSizeQtys]    = useState<Record<string, number>>({});
   const [view,        setView]        = useState<View>("front");
+  const canvasStates = useRef<Record<string, string>>({ front: "", back: "" });
   const [loading,     setLoading]     = useState(true);
   const [error,       setError]       = useState("");
 
@@ -212,12 +213,15 @@ export default function DesignPage() {
   const [leftTab,          setLeftTab]          = useState<LeftTab>("gallery");
   const [galleryCategory,  setGalleryCategory]  = useState("All");
   const [fontCategory,     setFontCategory]     = useState("All");
+  const [mobileTab,        setMobileTab]        = useState<"gallery"|"text"|"colors"|"order">("gallery");
 
   // ── DB designs ──
   const [dbDesigns,        setDbDesigns]        = useState<Record<string, Record<string, { id: string; name: string; url: string }[]>>>({});
   const [dbCategories,     setDbCategories]     = useState<string[]>([]);
   const [dbLoading,        setDbLoading]        = useState(true);
   const [gallerySubcat,    setGallerySubcat]    = useState<string>("All");
+  const [featuredCats,     setFeaturedCats]     = useState<string[]>([]);
+  const loadedCats         = useRef<Set<string>>(new Set());
   const [textInput,        setTextInput]        = useState("");
   const [fontSize,         setFontSize]         = useState(48);
   const [fontFamily,       setFontFamily]       = useState("Bebas Neue");
@@ -227,11 +231,9 @@ export default function DesignPage() {
   const [selectedObj,      setSelectedObj]      = useState<any>(null);
   const [canvasReady,      setCanvasReady]      = useState(false);
   const [removingBg,       setRemovingBg]       = useState(false);
-  const [qty,              setQty]              = useState(1);
-  const [submitting,       setSubmitting]       = useState(false);
-  const [submitted,        setSubmitted]        = useState(false);
-  const [submitError,      setSubmitError]      = useState("");
+  const [checkoutError,    setCheckoutError]    = useState("");
   const [printLocations,   setPrintLocations]   = useState({ Front: true, Back: false, "Left Sleeve": false, "Right Sleeve": false });
+
 
   // ── DOM refs ──
   // mountRef: React renders an empty div here — canvas is created imperatively
@@ -243,17 +245,34 @@ export default function DesignPage() {
   const fileRef    = useRef<HTMLInputElement>(null);
   const initedRef  = useRef(false); // guard against StrictMode double-invocation
 
-  // ── Load gallery designs from DB ──
+  // ── Load gallery — featured on mount, per-category on demand ──
   useEffect(() => {
     fetch("/api/gallery")
       .then(r => r.json())
       .then(d => {
-        setDbDesigns(d.grouped || {});
         setDbCategories(d.categories || []);
+        setFeaturedCats(d.featured || []);
+        if (d.grouped) {
+          setDbDesigns(d.grouped);
+          Object.keys(d.grouped).forEach(c => loadedCats.current.add(c));
+        }
       })
       .catch(() => {})
       .finally(() => setDbLoading(false));
   }, []);
+
+  const loadCategory = (cat: string) => {
+    if (loadedCats.current.has(cat)) return;
+    loadedCats.current.add(cat);
+    setDbLoading(true);
+    fetch(`/api/gallery?category=${encodeURIComponent(cat)}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.grouped) setDbDesigns(prev => ({ ...prev, ...d.grouped }));
+      })
+      .catch(() => {})
+      .finally(() => setDbLoading(false));
+  };
 
   // ── Load product ──
   useEffect(() => {
@@ -421,6 +440,23 @@ export default function DesignPage() {
     } finally { setRemovingBg(false); }
   };
 
+  const switchView = (newView: View) => {
+    const fc = fabricRef.current;
+    if (!fc || newView === view) return;
+    // Save current view's canvas state
+    canvasStates.current[view] = JSON.stringify(fc.toJSON());
+    // Clear canvas and restore new view's state
+    fc.clear();
+    const saved = canvasStates.current[newView];
+    if (saved) {
+      import("fabric").then(({ fabric }) => {
+        fc.loadFromJSON(saved, () => { fc.renderAll(); });
+      });
+    }
+    setView(newView);
+    setSelectedObj(null);
+  };
+
   const deleteSelected = () => {
     const fc = fabricRef.current;
     if (!fc) return;
@@ -435,37 +471,44 @@ export default function DesignPage() {
     if (objs.length) { fc.remove(objs[objs.length - 1]); fc.renderAll(); }
   };
 
-  const handleOrder = async () => {
-    if (!activeSize) { setSubmitError("Please select a size."); return; }
+  const handleCheckout = () => {
     if (!style || !activeColor) return;
-    setSubmitting(true); setSubmitError("");
-    try {
-      const zones = (Object.keys(printLocations) as (keyof typeof printLocations)[]).filter(k => printLocations[k]).join(", ");
-      const mockup = fabricRef.current?.toDataURL({ format: "png", multiplier: 2 }) ?? null;
-      const res = await fetch("/api/inquiries", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          style_id: style.styleID, brand_name: style.brandName, style_name: style.styleName, title: style.title,
-          color: activeColor.colorName, size: activeSize.sizeName, sku: activeSize.sku, qty,
-          garment_price: garmentPrice, print_fee: printFee, price_per: pricePerPiece, order_total: orderTotal,
-          print_zones: zones, design_mockup: mockup,
-        }),
-      });
-      if (!res.ok) throw new Error("Failed to submit");
-      setSubmitted(true);
-    } catch (e: any) {
-      setSubmitError(e.message);
-    } finally { setSubmitting(false); }
+    if (totalQty === 0) { setCheckoutError("Please enter a quantity for at least one size."); return; }
+    setCheckoutError("");
+
+    // Build a compact size summary for the title, e.g. "S×2, M×3, L×1"
+    const sizeSummary = sizes
+      .filter(s => (sizeQtys[s.sku] ?? 0) > 0)
+      .map(s => `${s.sizeName}×${sizeQtys[s.sku]}`)
+      .join(", ");
+
+    const zones = (Object.keys(printLocations) as (keyof typeof printLocations)[])
+      .filter(k => printLocations[k]).join(", ");
+
+    const base = process.env.NEXT_PUBLIC_BARTER_NETWORK_URL || "https://barternetworkokc.com";
+    const params = new URLSearchParams({
+      title:       `${style.title || style.styleName} — Custom Design`,
+      brand:       style.brandName,
+      color:       activeColor.colorName,
+      size:        sizeSummary,
+      sku:         sizes.find(s => (sizeQtys[s.sku] ?? 0) > 0)?.sku || "",
+      price_cents: String(Math.round(orderTotal * 100)),
+      style_id:    String(style.styleID),
+      image:       activeColor.frontImage || style.styleImage || "",
+      notes:       `Print: ${zones} | Sizes: ${sizeSummary}`,
+    });
+
+    window.location.href = `${base}/checkout/apparel?${params}`;
   };
 
   // ── Derived pricing ──
   const sizes         = activeColor?.sizes ?? [];
-  const garmentPrice  = activeSize?.piecePrice ?? sizes[0]?.piecePrice ?? null;
   const printFee      = (Object.keys(printLocations) as (keyof typeof printLocations)[]).reduce((sum, k) => sum + (printLocations[k] ? PRINT_PRICES[k] : 0), 0);
+  const garmentPrice  = sizes[0]?.piecePrice ?? null;
   const pricePerPiece = garmentPrice != null ? garmentPrice + printFee : null;
-  const orderTotal    = pricePerPiece != null ? pricePerPiece * qty : null;
-  const rebate        = orderTotal != null ? Math.floor(orderTotal / 200) * 50 : 0;
+  const totalQty      = sizes.reduce((sum, s) => sum + (sizeQtys[s.sku] ?? 0), 0);
+  const orderTotal    = sizes.reduce((sum, s) => { const q = sizeQtys[s.sku] ?? 0; return q > 0 ? sum + (s.piecePrice + printFee) * q : sum; }, 0);
+  const rebate        = orderTotal > 0 ? Math.floor(orderTotal / 200) * 50 : 0;
   const filteredFonts = fontCategory === "All" ? FONTS : FONTS.filter(f => f.category === fontCategory);
 
   // Sanmar CDN swatch URLs return a placeholder with HTTP 200 — skip them.
@@ -516,17 +559,6 @@ export default function DesignPage() {
   // ── Early returns ──
   if (loading) return <div className="page-center">Loading product…</div>;
   if (error || !style) return <div className="page-center err">{error || "Product not found"}</div>;
-
-  if (submitted) return (
-    <div className="page-center" style={{ flexDirection: "column", gap: "1rem" }}>
-      <div style={{ fontSize: "3rem" }}>✅</div>
-      <h2 style={{ color: "#e8c97e", margin: 0 }}>Order submitted!</h2>
-      <p style={{ color: "#888", textAlign: "center", maxWidth: 320 }}>
-        We received your custom design for the {style.title}. We'll be in touch to confirm.
-      </p>
-      <button className="btn-gold" onClick={() => router.push(`/product/${styleId}`)}>Back to product</button>
-    </div>
-  );
 
   // ── Render ──
   return (
@@ -586,9 +618,9 @@ export default function DesignPage() {
                 <select
                   className="gallery-select"
                   value={galleryCategory}
-                  onChange={e => { setGalleryCategory(e.target.value); setGallerySubcat("All"); }}
+                  onChange={e => { const v = e.target.value; setGalleryCategory(v); setGallerySubcat("All"); if (v && !v.startsWith("tpl-") && v !== "All") loadCategory(v); }}
                 >
-                  <option value="All">— All Designs —</option>
+                  <option value="All">— Choose a Category —</option>
                   {dbCategories.length > 0 && <optgroup label="My Designs">
                     {dbCategories.map(c => (
                       <option key={c} value={c}>{c}</option>
@@ -608,7 +640,7 @@ export default function DesignPage() {
                     value={gallerySubcat}
                     onChange={e => setGallerySubcat(e.target.value)}
                   >
-                    <option value="All">— All {galleryCategory} —</option>
+                    <option value="All">— Choose a Category —</option>
                     {catSubcats.filter(s => s !== "").map(s => (
                       <option key={s} value={s}>{s}</option>
                     ))}
@@ -701,8 +733,8 @@ export default function DesignPage() {
         {/* Canvas area */}
         <div className="canvas-wrap">
           <div className="view-toggle">
-            <button className={`view-btn ${view === "front" ? "active" : ""}`} onClick={() => setView("front")}>Front</button>
-            <button className={`view-btn ${view === "back"  ? "active" : ""}`} onClick={() => setView("back")}>Back</button>
+            <button className={`view-btn ${view === "front" ? "active" : ""}`} onClick={() => switchView("front")}>Front</button>
+            <button className={`view-btn ${view === "back"  ? "active" : ""}`} onClick={() => switchView("back")}>Back</button>
           </div>
 
           {/* Stage: bg img always mounted, Fabric mount always mounted — no conditionals here */}
@@ -723,7 +755,7 @@ export default function DesignPage() {
               {colors.map(c => (
                 <button key={c.colorName} title={c.colorName}
                   className={`swatch ${activeColor?.colorName === c.colorName ? "active" : ""}`}
-                  onClick={() => { setActiveColor(c); setActiveSize(null); }}>
+                  onClick={() => { setActiveColor(c); setSizeQtys({}); }}>
                   {/* dot always visible; img overlays it and hides itself on error */}
                   <span className="swatch-dot" style={{ background: c.colorHex || colorNameToHex(c.colorName) }} />
                   {validSwatch(c.swatchImage) && (
@@ -750,28 +782,26 @@ export default function DesignPage() {
           </div>
 
           <div className="tool-section">
-            <p className="tool-label">Size</p>
-            <div className="size-row">
-              {sizes.map(s => (
-                <button key={s.sku} disabled={s.qtyTotal === 0}
-                  className={`size-btn ${activeSize?.sku === s.sku ? "active" : ""} ${s.qtyTotal === 0 ? "oos" : ""}`}
-                  onClick={() => setActiveSize(s)}>
-                  {s.sizeName}
-                </button>
-              ))}
+            <p className="tool-label">Sizes &amp; Quantities</p>
+            <div className="size-qty-table">
+              {sizes.map(s => {
+                const oos = s.qtyTotal === 0;
+                return (
+                  <div key={s.sku} className={`sqrow ${oos ? "sqoos" : ""}`}>
+                    <span className="sq-name">{s.sizeName}</span>
+                    <span className="sq-price">${(s.piecePrice + printFee).toFixed(2)}</span>
+                    <input type="number" min={0} max={oos ? 0 : 999} disabled={oos}
+                      value={sizeQtys[s.sku] ?? 0}
+                      onChange={e => setSizeQtys(p => ({ ...p, [s.sku]: Math.max(0, parseInt(e.target.value) || 0) }))}
+                      className="sq-input" />
+                  </div>
+                );
+              })}
             </div>
           </div>
 
-          <div className="tool-section">
-            <p className="tool-label">Quantity</p>
-            <div className="qty-row">
-              <button className="qty-btn" onClick={() => setQty(q => Math.max(1, q - 1))}>−</button>
-              <span className="qty-val">{qty}</span>
-              <button className="qty-btn" onClick={() => setQty(q => q + 1)}>+</button>
-            </div>
-          </div>
 
-          {pricePerPiece != null && (
+          {totalQty > 0 && pricePerPiece != null && (
             <div className="tool-section">
               <p className="tool-label">Price Breakdown</p>
               <div className="breakdown">
@@ -780,22 +810,173 @@ export default function DesignPage() {
                   <div key={k} className="brow"><span>{k} print</span><span>+${PRINT_PRICES[k]}.00</span></div>
                 ))}
                 <div className="brow total"><span>Per piece</span><span>${pricePerPiece.toFixed(2)}</span></div>
-                {qty > 1 && <div className="brow total"><span>Total ({qty} pcs)</span><span>${orderTotal?.toFixed(2)}</span></div>}
+                <div className="brow total"><span>Total ({totalQty} pcs)</span><span>${orderTotal.toFixed(2)}</span></div>
               </div>
               {rebate > 0 && <div className="rebate-badge">🎉 Earn <strong>{rebate} BB</strong> on this order!</div>}
             </div>
           )}
 
           <div className="tool-section">
-            <button className="btn-gold w-full" onClick={handleOrder} disabled={submitting || !activeSize}>
-              {submitting ? "Submitting…" : "Submit Design Order →"}
+            <button className="btn-gold w-full" onClick={handleCheckout}>
+              Checkout →
             </button>
-            {!activeSize && <p className="hint">Select a size to continue</p>}
-            {submitError && <p className="err">{submitError}</p>}
-            <p className="hint">We'll review your design and contact you to confirm.</p>
+            {checkoutError && <p className="err">{checkoutError}</p>}
           </div>
 
         </div>
+      </div>
+
+      {/* ── Mobile panel + tab bar ── */}
+      <div className="mobile-panel">
+        {mobileTab === "gallery" && (() => {
+          const isTemplate = galleryCategory.startsWith("tpl-");
+          const catSubcats = !isTemplate && galleryCategory !== "All" && galleryCategory !== ""
+            ? Object.keys(dbDesigns[galleryCategory] || {}).sort() : [];
+          const hasSubcats = catSubcats.filter(s => s !== "").length > 0;
+          const visibleDesigns: { id: string; name: string; url: string }[] = (() => {
+            if (isTemplate) return [];
+            if (galleryCategory === "All" || galleryCategory === "") return Object.values(dbDesigns).flatMap(subs => Object.values(subs).flat());
+            const catData = dbDesigns[galleryCategory] || {};
+            if (!hasSubcats || gallerySubcat === "All") return Object.values(catData).flat();
+            return catData[gallerySubcat] || catData[""] || [];
+          })();
+          return <>
+            <div className="m-selects">
+              <select className="m-select" value={galleryCategory} onChange={e => { const v = e.target.value; setGalleryCategory(v); setGallerySubcat("All"); if (v && !v.startsWith("tpl-") && v !== "All") loadCategory(v); }}>
+                <option value="All">— Choose a Category —</option>
+                {dbCategories.length > 0 && <optgroup label="My Designs">{dbCategories.map(c => <option key={c} value={c}>{c}</option>)}</optgroup>}
+                <optgroup label="Text Templates">{TEMPLATE_CATEGORIES.map(c => <option key={`tpl-${c}`} value={`tpl-${c}`}>{c}</option>)}</optgroup>
+              </select>
+              {hasSubcats && <select className="m-select" value={gallerySubcat} onChange={e => setGallerySubcat(e.target.value)}>
+                <option value="All">— All {galleryCategory} —</option>
+                {catSubcats.filter(s => s !== "").map(s => <option key={s} value={s}>{s}</option>)}
+              </select>}
+            </div>
+            {!isTemplate && (dbLoading ? <p className="m-hint">Loading…</p> : visibleDesigns.length === 0 ? <p className="m-hint">No designs yet.</p> : (
+              <div className="m-design-grid">
+                {visibleDesigns.map(d => (
+                  <button key={d.id} className="m-design-card" title={d.name} onClick={() => placeDesignImage(d.url)}>
+                    <img src={d.url} alt={d.name} loading="lazy" />
+                    <p className="m-design-name">{d.name}</p>
+                  </button>
+                ))}
+              </div>
+            ))}
+            {isTemplate && (
+              <div className="m-design-grid">
+                {(TEMPLATES[galleryCategory.replace("tpl-", "")] || []).map(tpl => (
+                  <button key={tpl.id} className="m-design-card" onClick={() => loadTemplate(tpl)}>
+                    <div className="m-tpl-preview">{tpl.objects.slice(0,2).map((o,i) => <span key={i} style={{ fontFamily: o.fontFamily, color: o.fill, fontSize: Math.max(8, o.fontSize * 0.13)+"px", display:"block", lineHeight:1.1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{o.text}</span>)}</div>
+                    <p className="m-design-name">{tpl.name}</p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </>;
+        })()}
+
+        {mobileTab === "text" && (
+          <div className="m-text-panel">
+            <textarea className="m-text-input" placeholder="Type your text…" value={textInput} onChange={e => setTextInput(e.target.value)} rows={2} />
+            <div className="m-row">
+              <input type="number" className="m-size-input" value={fontSize} min={8} max={200} onChange={e => setFontSize(+e.target.value)} />
+              <button className={`fmt-btn ${bold ? "active" : ""}`} onClick={() => setBold(b => !b)}><b>B</b></button>
+              <button className={`fmt-btn ${italic ? "active" : ""}`} onClick={() => setItalic(i => !i)}><i>I</i></button>
+              <input type="color" className="color-picker" value={textColor} onChange={e => setTextColor(e.target.value)} />
+              <button className="btn-gold" onClick={addText} disabled={!textInput.trim()}>Add</button>
+            </div>
+            <div className="m-font-pills">
+              {FONT_CATEGORIES.map(fc => <button key={fc} className={`pill ${fontCategory === fc ? "active" : ""}`} onClick={() => setFontCategory(fc)}>{fc}</button>)}
+            </div>
+            <div className="m-font-list">
+              {FONTS.filter(f => fontCategory === "All" || f.category === fontCategory).map(f => (
+                <button key={f.family} className={`font-opt ${fontFamily === f.family ? "active" : ""}`} style={{ fontFamily: f.family }} onClick={() => setFontFamily(f.family)}>{f.family}</button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {mobileTab === "colors" && (
+          <div className="m-colors-panel">
+            <p className="tool-label" style={{padding:"0.75rem 0.75rem 0.25rem"}}>Color — <span className="val">{activeColor?.colorName}</span></p>
+            <div className="m-swatch-grid">
+              {colors.map(c => (
+                <button key={c.colorName} title={c.colorName}
+                  className={`swatch ${activeColor?.colorName === c.colorName ? "active" : ""}`}
+                  onClick={() => { setActiveColor(c); setSizeQtys({}); }}>
+                  <span className="swatch-dot" style={{ background: c.colorHex || colorNameToHex(c.colorName) }} />
+                  {validSwatch(c.swatchImage) && <img src={validSwatch(c.swatchImage)!} alt={c.colorName} className="swatch-img" onError={e => { e.currentTarget.style.display = "none"; }} />}
+                </button>
+              ))}
+            </div>
+            <p className="tool-label" style={{padding:"0.75rem 0.75rem 0.25rem"}}>Print Locations</p>
+            <div style={{padding:"0 0.75rem"}}>
+              {(Object.keys(PRINT_PRICES) as (keyof typeof PRINT_PRICES)[]).map(loc => (
+                <label key={loc} className="zone-row">
+                  <input type="checkbox" checked={printLocations[loc]} onChange={e => setPrintLocations(p => ({ ...p, [loc]: e.target.checked }))} />
+                  <span>{loc}</span><span className="zone-price">+${PRINT_PRICES[loc]}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {mobileTab === "order" && (
+          <div className="m-order-panel">
+            <p className="tool-label" style={{padding:"0.75rem 0.75rem 0.25rem"}}>Sizes &amp; Quantities</p>
+            <div className="size-qty-table" style={{margin:"0 0.75rem 0.75rem"}}>
+              {sizes.map(s => {
+                const oos = s.qtyTotal === 0;
+                return (
+                  <div key={s.sku} className={`sqrow ${oos ? "sqoos" : ""}`}>
+                    <span className="sq-name">{s.sizeName}</span>
+                    <span className="sq-price">${(s.piecePrice + printFee).toFixed(2)}</span>
+                    <input type="number" min={0} max={oos ? 0 : 999} disabled={oos}
+                      value={sizeQtys[s.sku] ?? 0}
+                      onChange={e => setSizeQtys(p => ({ ...p, [s.sku]: Math.max(0, parseInt(e.target.value) || 0) }))}
+                      className="sq-input" />
+                  </div>
+                );
+              })}
+            </div>
+
+
+            {totalQty > 0 && pricePerPiece != null && (
+              <div style={{padding:"0 0.75rem",marginBottom:"0.75rem"}}>
+                <div className="breakdown">
+                  <div className="brow"><span>Garment</span><span>${garmentPrice?.toFixed(2)}</span></div>
+                  {(Object.keys(PRINT_PRICES) as (keyof typeof PRINT_PRICES)[]).filter(k => printLocations[k]).map(k => (
+                    <div key={k} className="brow"><span>{k} print</span><span>+${PRINT_PRICES[k]}.00</span></div>
+                  ))}
+                  <div className="brow total"><span>Per piece</span><span>${pricePerPiece.toFixed(2)}</span></div>
+                  <div className="brow total"><span>Total ({totalQty} pcs)</span><span>${orderTotal.toFixed(2)}</span></div>
+                </div>
+                {rebate > 0 && <div className="rebate-badge">🎉 Earn <strong>{rebate} BB</strong> on this order!</div>}
+              </div>
+            )}
+
+            <div style={{padding:"0 0.75rem"}}>
+              <button className="btn-gold w-full" onClick={handleCheckout}>
+                Checkout →
+              </button>
+              {checkoutError && <p className="err">{checkoutError}</p>}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="mobile-tabbar">
+        {([
+          { id: "gallery", label: "Gallery", icon: "🖼" },
+          { id: "text",    label: "Text",    icon: "T" },
+          { id: "colors",  label: "Colors",  icon: "●" },
+          { id: "order",   label: "Order",   icon: "✓" },
+        ] as const).map(t => (
+          <button key={t.id} className={`m-tab ${mobileTab === t.id ? "active" : ""}`} onClick={() => setMobileTab(t.id)}>
+            <span className="m-tab-icon">{t.icon}</span>
+            <span className="m-tab-label">{t.label}</span>
+          </button>
+        ))}
       </div>
 
       <style jsx>{`
@@ -845,7 +1026,7 @@ export default function DesignPage() {
         .tpl-name { font-size: 0.65rem; color: #888; margin: 0; text-align: center; }
 
         /* DB design images */
-        .design-img-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; padding: 0.75rem; }
+        .design-img-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; padding: 0.6rem; }
         .design-img-card { background: #111; border: 1px solid #222; border-radius: 8px; padding: 0.3rem; cursor: pointer; transition: all 0.15s; display: flex; flex-direction: column; align-items: center; }
         .design-img-card:hover { border-color: #e8c97e55; background: #151515; }
         .design-img-card img { width: 100%; height: 80px; object-fit: contain; border-radius: 5px; background: #1a1a1a; }
@@ -894,16 +1075,23 @@ export default function DesignPage() {
         .zone-row span:nth-child(2) { flex: 1; }
         .zone-price { color: #666; font-size: 0.72rem; }
 
-        .size-row { display: flex; flex-wrap: wrap; gap: 0.35rem; }
-        .size-btn { padding: 0.35rem 0.6rem; border: 1px solid #2a2a2a; background: transparent; color: #ccc; font-size: 0.75rem; border-radius: 5px; cursor: pointer; font-family: inherit; transition: all 0.15s; }
-        .size-btn:hover:not(:disabled) { border-color: #e8c97e; color: #e8c97e; }
-        .size-btn.active { border-color: #e8c97e; background: #e8c97e18; color: #e8c97e; }
-        .size-btn.oos { color: #333; border-color: #1e1e1e; cursor: default; }
+        .size-qty-table { display: flex; flex-direction: column; gap: 0.25rem; }
+        .sqrow { display: grid; grid-template-columns: 3rem 1fr 4.5rem; align-items: center; gap: 0.4rem; padding: 0.3rem 0.4rem; border-radius: 6px; border: 1px solid #1e1e1e; background: #111; }
+        .sqrow.sqoos { opacity: 0.35; }
+        .sq-name { font-size: 0.78rem; font-weight: 700; color: #ccc; }
+        .sq-price { font-size: 0.72rem; color: #666; }
+        .sq-input { width: 100%; padding: 0.3rem 0.4rem; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 5px; color: #f0ede8; font-size: 0.82rem; text-align: center; font-family: inherit; box-sizing: border-box; }
+        .sq-input:focus { outline: none; border-color: #e8c97e55; }
+        .sq-input:disabled { color: #333; cursor: default; }
 
-        .qty-row { display: flex; align-items: center; border: 1px solid #2a2a2a; border-radius: 7px; overflow: hidden; width: fit-content; }
-        .qty-btn { width: 32px; height: 32px; background: transparent; border: none; color: #ccc; font-size: 1rem; cursor: pointer; transition: color 0.15s; }
-        .qty-btn:hover { color: #e8c97e; }
-        .qty-val { min-width: 32px; text-align: center; font-size: 0.85rem; font-weight: 600; }
+
+        /* Extra product sections */
+        .extra-product-section { border-top: 1px solid #1a1a1a; }
+        .extra-product-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; }
+        .extra-product-name { font-size: 0.75rem; font-weight: 600; color: #ccc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+        .ep-remove { background: transparent; border: none; color: #555; cursor: pointer; font-size: 0.85rem; padding: 0.15rem 0.3rem; flex-shrink: 0; transition: color 0.15s; }
+        .ep-remove:hover { color: #e8c97e; }
+
 
         .breakdown { display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 0.6rem; }
         .brow { display: flex; justify-content: space-between; font-size: 0.75rem; color: #888; }
@@ -926,13 +1114,57 @@ export default function DesignPage() {
         .hint { font-size: 0.7rem; color: #555; margin: 0.35rem 0 0; }
         .err  { font-size: 0.72rem; color: #c87e7e; margin: 0.35rem 0 0; }
 
+        /* Mobile elements hidden on desktop */
+        .mobile-panel { display: none; }
+        .mobile-tabbar { display: none; }
+
         @media (max-width: 960px) {
-          .designer { height: auto; overflow: visible; }
-          .workspace { display: flex; flex-direction: column; height: auto; overflow: visible; }
-          .canvas-wrap { order: 1; min-height: 360px; flex-shrink: 0; }
-          .left-panel { order: 2; border-right: none; border-top: 1px solid #1a1a1a; max-height: 340px; overflow-y: auto; }
-          .right-panel { order: 3; border-left: none; border-top: 1px solid #1a1a1a; }
+          /* Full-height app shell */
+          .designer { height: 100dvh; overflow: hidden; }
+          /* Workspace = canvas only */
+          .workspace { display: block; flex-shrink: 0; }
+          .left-panel { display: none; }
+          .right-panel { display: none; }
+          .canvas-wrap { height: 42vh; min-height: 0; }
+          .canvas-stage { width: 100% !important; height: 100% !important; }
+          .header { padding: 0.5rem 1rem; }
           .header-actions { display: none; }
+          .header-title { font-size: 0.85rem; }
+
+          /* Mobile panel — scrollable content area */
+          .mobile-panel { display: flex; flex-direction: column; flex: 1; overflow-y: auto; overflow-x: hidden; background: #0d0d0d; border-top: 1px solid #1a1a1a; min-height: 0; }
+
+          /* Mobile tab bar — sticky at bottom */
+          .mobile-tabbar { display: flex; flex-shrink: 0; height: 56px; background: #0d0d0d; border-top: 1px solid #1a1a1a; }
+          .m-tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.15rem; background: transparent; border: none; cursor: pointer; color: #555; transition: color 0.15s; font-family: inherit; padding: 0; }
+          .m-tab.active { color: #e8c97e; }
+          .m-tab-icon { font-size: 1.1rem; line-height: 1; }
+          .m-tab-label { font-size: 0.62rem; font-weight: 600; letter-spacing: 0.03em; }
+
+          /* Mobile gallery */
+          .m-selects { display: flex; flex-direction: column; gap: 0.4rem; padding: 0.5rem 0.4rem; border-bottom: 1px solid #1a1a1a; }
+          .m-select { width: 100%; padding: 0.5rem 0.6rem; background: #111; border: 1px solid #2a2a2a; border-radius: 7px; color: #f0ede8; font-size: 0.82rem; font-family: inherit; outline: none; }
+          .m-design-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.4rem; padding: 0.4rem; }
+          .m-design-card { background: #111; border: 1px solid #222; border-radius: 8px; padding: 0.25rem; cursor: pointer; display: flex; flex-direction: column; align-items: center; }
+          .m-design-card img { width: 100%; height: 110px; object-fit: contain; border-radius: 5px; background: #1a1a1a; }
+          .m-tpl-preview { width: 100%; height: 90px; background: #1a1a1a; border-radius: 5px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0.25rem; overflow: hidden; }
+          .m-design-name { font-size: 0.58rem; color: #888; margin: 0.2rem 0 0; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
+          .m-hint { color: #555; font-size: 0.8rem; padding: 1rem 0.75rem; }
+
+          /* Mobile text panel */
+          .m-text-panel { padding: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem; }
+          .m-text-input { width: 100%; padding: 0.5rem 0.6rem; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 6px; color: #f0ede8; font-size: 0.9rem; font-family: inherit; resize: none; box-sizing: border-box; }
+          .m-row { display: flex; gap: 0.4rem; align-items: center; }
+          .m-size-input { width: 52px; padding: 0.4rem; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 6px; color: #f0ede8; font-size: 0.8rem; text-align: center; }
+          .m-font-pills { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+          .m-font-list { display: flex; flex-direction: column; gap: 0.25rem; }
+
+          /* Mobile colors panel */
+          .m-swatch-grid { display: flex; flex-wrap: wrap; gap: 0.4rem; padding: 0 0.75rem 0.75rem; }
+          .m-swatch-grid .swatch { width: 34px; height: 34px; }
+
+          /* Mobile order panel */
+          .m-order-panel { padding-bottom: 1rem; }
         }
       `}</style>
     </div>
