@@ -132,7 +132,7 @@ export default function ProductDetailPage() {
   // Sanmar CDN swatch URLs (cdnm.sanmar.com *_SP26.gif) return a placeholder image
   // with HTTP 200 — onError never fires. Skip them; only use ssactivewear swatch images.
   const validSwatch = (url: string | null) =>
-    url?.includes("ssactivewear.com") ? url : null;
+    url?.includes("ssactivewear.com") ? proxied(url) : null;
 
   // Derive approximate color from name when colorHex is absent.
   const colorNameToHex = (name: string): string => {
