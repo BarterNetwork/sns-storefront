@@ -28,8 +28,9 @@ export default function ProductCard({ product, onInquire }: Props) {
   const [imgError, setImgError] = useState(false);
   const [hovered, setHovered] = useState(false);
 
-  const displayImage = !imgError
-    ? (product.sample_image || product.style_image || null)
+  const rawImage = product.sample_image || product.style_image || null;
+  const displayImage = !imgError && rawImage
+    ? `/api/proxy-image?url=${encodeURIComponent(rawImage)}`
     : null;
 
   const priceLabel =
