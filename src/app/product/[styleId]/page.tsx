@@ -206,9 +206,10 @@ export default function ProductDetailPage() {
       color:       activeColor?.colorName || "",
       size:        sizeSummary,
       sku:         firstSku,
-      price_cents: String(Math.round(orderTotal * 100)),
-      style_id:    String(style?.styleID || ""),
-      image:       activeColor?.frontImage || style?.styleImage || "",
+      price_cents:   String(Math.round(orderTotal * 100)),
+      style_id:      String(style?.styleID || ""),
+      image:         activeColor?.frontImage || style?.styleImage || "",
+      payment_mode:  "full",
     });
 
     window.location.href = `${base}/checkout/apparel?${params}`;

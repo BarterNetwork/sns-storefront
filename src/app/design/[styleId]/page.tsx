@@ -492,10 +492,11 @@ export default function DesignPage() {
       color:       activeColor.colorName,
       size:        sizeSummary,
       sku:         sizes.find(s => (sizeQtys[s.sku] ?? 0) > 0)?.sku || "",
-      price_cents: String(Math.round(orderTotal * 100)),
-      style_id:    String(style.styleID),
-      image:       activeColor.frontImage || style.styleImage || "",
-      notes:       `Print: ${zones} | Sizes: ${sizeSummary}`,
+      price_cents:   String(Math.round(orderTotal * 100)),
+      style_id:      String(style.styleID),
+      image:         activeColor.frontImage || style.styleImage || "",
+      notes:         `Print: ${zones} | Sizes: ${sizeSummary}`,
+      payment_mode:  "half",
     });
 
     window.location.href = `${base}/checkout/apparel?${params}`;
