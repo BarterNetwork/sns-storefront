@@ -4,8 +4,6 @@
  * Run via GitHub Actions: .github/workflows/generate-feed.yml (daily)
  */
 
-import { createClient } from "@supabase/supabase-js";
-
 const SUPABASE_URL       = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE_KEY   = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const BASE_URL           = "https://tshirtdepot.barternetworkokc.com";
@@ -19,9 +17,11 @@ if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
   process.exit(1);
 }
 
-const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
-  realtime: { enabled: false },
-});
+const headers = {
+  "apikey": SERVICE_ROLE_KEY,
+  "Authorization": `Bearer ${SERVICE_ROLE_KEY}`,
+  "Content-Type": "application/json",
+};
 
 const GOOGLE_CATEGORY = {
   "T-Shirts - Premium":    "212",
@@ -61,19 +61,19 @@ function proxyImage(url) {
   return url;
 }
 
-async function fetchAll(table, select, filters) {
+async function fetchAll(table, select) {
   const results = [];
-  let from = 0;
+  let offset = 0;
   while (true) {
-    let q = supabase.from(table).select(select).range(from, from + PAGE_SIZE - 1);
-    if (filters) q = filters(q);
-    const { data, error } = await q;
-    if (error) throw error;
+    const url = `${SUPABASE_URL}/rest/v1/${table}?select=${encodeURIComponent(select)}&limit=${PAGE_SIZE}&offset=${offset}`;
+    const res = await fetch(url, { headers });
+    if (!res.ok) throw new Error(`${table} fetch failed: ${res.status} ${await res.text()}`);
+    const data = await res.json();
     if (!data || data.length === 0) break;
     results.push(...data);
     console.log(`  ${table}: fetched ${results.length} rows...`);
     if (data.length < PAGE_SIZE) break;
-    from += PAGE_SIZE;
+    offset += PAGE_SIZE;
   }
   return results;
 }
@@ -147,16 +147,20 @@ ${items.join("\n")}
 
   console.log("Uploading to Supabase Storage...");
 
-  const { error: uploadError } = await supabase.storage
-    .from(BUCKET)
-    .upload(FILE_PATH, Buffer.from(xml, "utf-8"), {
-      contentType: "application/xml; charset=utf-8",
-      upsert: true,
-    });
+  const uploadUrl = `${SUPABASE_URL}/storage/v1/object/${BUCKET}/${FILE_PATH}`;
+  const uploadRes = await fetch(uploadUrl, {
+    method: "PUT",
+    headers: {
+      ...headers,
+      "Content-Type": "application/xml; charset=utf-8",
+      "x-upsert": "true",
+    },
+    body: Buffer.from(xml, "utf-8"),
+  });
 
-  if (uploadError) throw uploadError;
+  if (!uploadRes.ok) throw new Error(`Upload failed: ${uploadRes.status} ${await uploadRes.text()}`);
 
-  const { data: { publicUrl } } = supabase.storage.from(BUCKET).getPublicUrl(FILE_PATH);
+  const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${FILE_PATH}`;
   console.log(`Done! Feed published at:\n${publicUrl}`);
 }
 
