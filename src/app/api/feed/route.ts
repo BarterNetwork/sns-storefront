@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase, supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase";
 
 const MARKUP = 1.5;
 const BASE_URL = "https://tshirtdepot.barternetworkokc.com";
 const PAGE_SIZE = 1000;
 
-// Map base_category to Google product category IDs
 const GOOGLE_CATEGORY: Record<string, string> = {
   "T-Shirts - Premium":    "212",
   "T-Shirts - Core":       "212",
@@ -36,6 +35,14 @@ function esc(str: string | null | undefined): string {
     .replace(/"/g, "&quot;");
 }
 
+function proxyImage(url: string | null): string | null {
+  if (!url) return null;
+  if (url.includes("ssactivewear.com")) {
+    return `${BASE_URL}/api/proxy-image?url=${encodeURIComponent(url)}`;
+  }
+  return url;
+}
+
 async function fetchAll(
   client: ReturnType<typeof supabaseAdmin>,
   table: string,
@@ -63,51 +70,52 @@ export async function GET(req: NextRequest) {
   try {
     const admin = supabaseAdmin();
 
+    // One row per style+color with aggregated price/qty/image
+    const colors = await fetchAll(admin, "color_summary",
+      "style_id, color_name, color_front_image, min_price, total_qty"
+    );
+
+    // Style metadata for title, description, brand, category, styleImage fallback
     const styles = await fetchAll(admin, "styles",
       "styleID, brandName, title, styleName, description, styleImage, baseCategory"
     );
 
-    const summary = await fetchAll(admin, "style_summary",
-      "style_id, min_price, total_qty"
-    );
-
-    const priceMap: Record<number, { min_price: number; total_qty: number }> = {};
-    for (const s of summary) {
-      priceMap[s.style_id] = { min_price: s.min_price, total_qty: s.total_qty };
-    }
+    const styleMap: Record<number, any> = {};
+    for (const s of styles) styleMap[s.styleID] = s;
 
     const items: string[] = [];
-    let skippedNoPrice = 0;
-    let skippedNoImage = 0;
+    let skipped = 0;
 
-    for (const s of styles) {
-      const info = priceMap[s.styleID];
-      if (!info?.min_price) { skippedNoPrice++; continue; }
+    for (const c of colors) {
+      const s = styleMap[c.style_id];
+      if (!s) { skipped++; continue; }
 
-      const rawImage = s.styleImage || null;
-      if (!rawImage) { skippedNoImage++; continue; }
+      const rawImage = c.color_front_image || s.styleImage || null;
+      const image = proxyImage(rawImage);
+      if (!image) { skipped++; continue; }
 
-      // Proxy S&S images so Facebook's crawler can fetch them
-      const image = rawImage.includes("ssactivewear.com")
-        ? `${BASE_URL}/api/proxy-image?url=${encodeURIComponent(rawImage)}`
-        : rawImage;
+      if (!c.min_price) { skipped++; continue; }
 
-      const price = (info.min_price * MARKUP).toFixed(2);
-      const availability = info.total_qty > 0 ? "in stock" : "out of stock";
+      const price = (c.min_price * MARKUP).toFixed(2);
+      const availability = c.total_qty > 0 ? "in stock" : "out of stock";
       const title = esc(`${s.brandName} ${s.title || s.styleName}`);
       const description = esc(
         stripHtml(s.description) || `${s.brandName} ${s.title || s.styleName}`
       );
+      const colorSlug = (c.color_name || "").replace(/[^a-zA-Z0-9]/g, "_");
+      const variantId = `${c.style_id}_${colorSlug}`;
 
       items.push(`    <item>
-      <g:id>${s.styleID}</g:id>
+      <g:id>${variantId}</g:id>
+      <g:item_group_id>${c.style_id}</g:item_group_id>
       <g:title>${title}</g:title>
       <g:description>${description}</g:description>
-      <g:link>${BASE_URL}/product/${s.styleID}</g:link>
+      <g:link>${BASE_URL}/product/${c.style_id}</g:link>
       <g:image_link>${esc(image)}</g:image_link>
       <g:availability>${availability}</g:availability>
       <g:price>${price} USD</g:price>
       <g:brand>${esc(s.brandName)}</g:brand>
+      <g:color>${esc(c.color_name)}</g:color>
       <g:condition>new</g:condition>
       <g:google_product_category>${GOOGLE_CATEGORY[s.baseCategory] || "212"}</g:google_product_category>
       <g:product_type>${esc(s.baseCategory || "Apparel")}</g:product_type>
@@ -117,11 +125,10 @@ export async function GET(req: NextRequest) {
 
     if (debug) {
       return NextResponse.json({
+        color_rows: colors.length,
         styles_total: styles.length,
-        summary_total: summary.length,
         feed_items: items.length,
-        skipped_no_price: skippedNoPrice,
-        skipped_no_image: skippedNoImage,
+        skipped,
         sample_item: items[0] ?? null,
       });
     }
