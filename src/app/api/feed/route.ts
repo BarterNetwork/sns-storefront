@@ -81,10 +81,11 @@ export async function GET(req: NextRequest) {
       "style_id, min_price, total_qty"
     );
 
-    // Fetch distinct colors per style (one row per style+color combination)
-    const colors = await fetchAll(admin, "products",
-      "styleId, colorName, colorFrontImage, piecePrice, qtyTotal",
-      (q: any) => q.eq("active", true).gt("qtyTotal", 0)
+    // Fetch one representative row per (styleId, colorName) using style_colors view
+    // We use style_summary-style aggregation via the products table with min() on price
+    // and any() on image — done in JS after a single paginated fetch of color-level data
+    const colors = await fetchAll(admin, "color_summary",
+      "style_id, color_name, color_front_image, min_price, total_qty"
     );
 
     // Build maps
@@ -98,7 +99,7 @@ export async function GET(req: NextRequest) {
       styleMap[s.styleID] = s;
     }
 
-    // Dedupe to one row per (styleId, colorName) — keep the one with the best image
+    // colors is already one row per (style_id, color_name)
     const colorMap: Record<string, {
       styleId: number;
       colorName: string;
@@ -107,17 +108,14 @@ export async function GET(req: NextRequest) {
       qty: number;
     }> = {};
     for (const p of colors) {
-      const key = `${p.styleId}__${p.colorName}`;
-      const existing = colorMap[key];
-      if (!existing || (!existing.image && p.colorFrontImage)) {
-        colorMap[key] = {
-          styleId:   p.styleId,
-          colorName: p.colorName,
-          image:     p.colorFrontImage || null,
-          price:     p.piecePrice,
-          qty:       p.qtyTotal,
-        };
-      }
+      const key = `${p.style_id}__${p.color_name}`;
+      colorMap[key] = {
+        styleId:   p.style_id,
+        colorName: p.color_name,
+        image:     p.color_front_image || null,
+        price:     p.min_price,
+        qty:       p.total_qty,
+      };
     }
 
     // Build feed items — one per color variant
