@@ -102,8 +102,13 @@ export async function GET(req: NextRequest) {
       const info = priceMap[s.styleID];
       if (!info?.min_price) { skippedNoPrice++; continue; }
 
-      const image = s.styleImage || imageMap[s.styleID] || null;
-      if (!image) { skippedNoImage++; continue; }
+      const rawImage = s.styleImage || imageMap[s.styleID] || null;
+      if (!rawImage) { skippedNoImage++; continue; }
+
+      // Route S&S images through proxy so Facebook's crawler can fetch them
+      const image = rawImage.includes("ssactivewear.com")
+        ? `${BASE_URL}/api/proxy-image?url=${encodeURIComponent(rawImage)}`
+        : rawImage;
 
       const price = (info.min_price * MARKUP).toFixed(2);
       const availability = info.total_qty > 0 ? "in stock" : "out of stock";
@@ -155,7 +160,7 @@ ${items.join("\n")}
     return new Response(xml, {
       headers: {
         "Content-Type": "application/xml; charset=utf-8",
-        "Cache-Control": "public, max-age=3600",
+        "Cache-Control": "private, max-age=3600",
       },
     });
   } catch (err: any) {
