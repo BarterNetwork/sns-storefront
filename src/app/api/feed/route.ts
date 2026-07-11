@@ -36,14 +36,6 @@ function esc(str: string | null | undefined): string {
     .replace(/"/g, "&quot;");
 }
 
-function proxyImage(url: string): string {
-  if (url.includes("ssactivewear.com")) {
-    return `${BASE_URL}/api/proxy-image?url=${encodeURIComponent(url)}`;
-  }
-  return url;
-}
-
-// Paginate a Supabase query to get all rows beyond the default 1000-row limit
 async function fetchAll(
   client: ReturnType<typeof supabaseAdmin>,
   table: string,
@@ -71,83 +63,44 @@ export async function GET(req: NextRequest) {
   try {
     const admin = supabaseAdmin();
 
-    // Fetch all styles
     const styles = await fetchAll(admin, "styles",
       "styleID, brandName, title, styleName, description, styleImage, baseCategory"
     );
 
-    // Fetch all pricing + stock per style
     const summary = await fetchAll(admin, "style_summary",
       "style_id, min_price, total_qty"
     );
 
-    // Fetch one representative row per (styleId, colorName) using style_colors view
-    // We use style_summary-style aggregation via the products table with min() on price
-    // and any() on image — done in JS after a single paginated fetch of color-level data
-    const colors = await fetchAll(admin, "color_summary",
-      "style_id, color_name, color_front_image, min_price, total_qty"
-    );
-
-    // Build maps
     const priceMap: Record<number, { min_price: number; total_qty: number }> = {};
     for (const s of summary) {
       priceMap[s.style_id] = { min_price: s.min_price, total_qty: s.total_qty };
     }
 
-    const styleMap: Record<number, any> = {};
-    for (const s of styles) {
-      styleMap[s.styleID] = s;
-    }
-
-    // colors is already one row per (style_id, color_name)
-    const colorMap: Record<string, {
-      styleId: number;
-      colorName: string;
-      image: string | null;
-      price: number;
-      qty: number;
-    }> = {};
-    for (const p of colors) {
-      const key = `${p.style_id}__${p.color_name}`;
-      colorMap[key] = {
-        styleId:   p.style_id,
-        colorName: p.color_name,
-        image:     p.color_front_image || null,
-        price:     p.min_price,
-        qty:       p.total_qty,
-      };
-    }
-
-    // Build feed items — one per color variant
     const items: string[] = [];
-    let skippedNoStyle = 0;
     let skippedNoPrice = 0;
     let skippedNoImage = 0;
 
-    for (const variant of Object.values(colorMap)) {
-      const s = styleMap[variant.styleId];
-      if (!s) { skippedNoStyle++; continue; }
-
-      const info = priceMap[variant.styleId];
+    for (const s of styles) {
+      const info = priceMap[s.styleID];
       if (!info?.min_price) { skippedNoPrice++; continue; }
 
-      // Prefer color-specific image; fall back to style image
-      const rawImage = variant.image || s.styleImage || null;
+      const rawImage = s.styleImage || null;
       if (!rawImage) { skippedNoImage++; continue; }
 
-      const image = proxyImage(rawImage);
-      const price = (variant.price * MARKUP).toFixed(2);
-      const availability = variant.qty > 0 ? "in stock" : "out of stock";
+      // Proxy S&S images so Facebook's crawler can fetch them
+      const image = rawImage.includes("ssactivewear.com")
+        ? `${BASE_URL}/api/proxy-image?url=${encodeURIComponent(rawImage)}`
+        : rawImage;
+
+      const price = (info.min_price * MARKUP).toFixed(2);
+      const availability = info.total_qty > 0 ? "in stock" : "out of stock";
       const title = esc(`${s.brandName} ${s.title || s.styleName}`);
       const description = esc(
         stripHtml(s.description) || `${s.brandName} ${s.title || s.styleName}`
       );
-      // Unique ID per variant: styleID_colorName (slugified)
-      const variantId = `${s.styleID}_${(variant.colorName || "").replace(/[^a-zA-Z0-9]/g, "_")}`;
 
       items.push(`    <item>
-      <g:id>${variantId}</g:id>
-      <g:item_group_id>${s.styleID}</g:item_group_id>
+      <g:id>${s.styleID}</g:id>
       <g:title>${title}</g:title>
       <g:description>${description}</g:description>
       <g:link>${BASE_URL}/product/${s.styleID}</g:link>
@@ -155,7 +108,6 @@ export async function GET(req: NextRequest) {
       <g:availability>${availability}</g:availability>
       <g:price>${price} USD</g:price>
       <g:brand>${esc(s.brandName)}</g:brand>
-      <g:color>${esc(variant.colorName)}</g:color>
       <g:condition>new</g:condition>
       <g:google_product_category>${GOOGLE_CATEGORY[s.baseCategory] || "212"}</g:google_product_category>
       <g:product_type>${esc(s.baseCategory || "Apparel")}</g:product_type>
@@ -163,15 +115,11 @@ export async function GET(req: NextRequest) {
     </item>`);
     }
 
-    // Debug mode — return JSON summary instead of XML
     if (debug) {
       return NextResponse.json({
         styles_total: styles.length,
         summary_total: summary.length,
-        color_rows_total: colors.length,
-        color_variants_deduped: Object.keys(colorMap).length,
         feed_items: items.length,
-        skipped_no_style: skippedNoStyle,
         skipped_no_price: skippedNoPrice,
         skipped_no_image: skippedNoImage,
         sample_item: items[0] ?? null,
