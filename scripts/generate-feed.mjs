@@ -19,7 +19,9 @@ if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
   process.exit(1);
 }
 
-const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+  realtime: { enabled: false },
+});
 
 const GOOGLE_CATEGORY = {
   "T-Shirts - Premium":    "212",
