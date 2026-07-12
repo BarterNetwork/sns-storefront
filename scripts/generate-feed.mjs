@@ -42,7 +42,38 @@ const GOOGLE_CATEGORY = {
 
 function stripHtml(html) {
   if (!html) return "";
-  return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 5000);
+  return html
+    .replace(/<[^>]*>/g, " ")       // remove tags
+    .replace(/&nbsp;/gi, " ")        // decode &nbsp;
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 5000);
+}
+
+function extractMaterial(description) {
+  if (!description) return null;
+  // Match patterns like "100% cotton", "50/50 polyester/cotton", "60/40 cotton/polyester"
+  const match = description.match(/\d+(?:[./]\d+)*\s*%?\s*[\w/]+(?:\s*[,/]\s*\d+\s*%\s*[\w/]+)*/i);
+  if (!match) return null;
+  // Clean it up and cap length
+  return match[0].replace(/\s+/g, " ").trim().slice(0, 200);
+}
+
+function getGender(title, styleName, baseCategory) {
+  const text = `${title || ""} ${styleName || ""}`.toLowerCase();
+  if (/\bwomen'?s?\b|\bwomens\b|\bladies\b|\bgirls?\b/.test(text)) return "female";
+  if (/\bmen'?s?\b|\bmens\b|\bboys?\b/.test(text)) return "male";
+  if (baseCategory === "Youth" || baseCategory === "Infant & Toddler") return "unisex";
+  return "unisex";
+}
+
+function getAgeGroup(baseCategory) {
+  if (baseCategory === "Infant & Toddler") return "infant";
+  if (baseCategory === "Youth") return "kids";
+  return "adult";
 }
 
 function esc(str) {
@@ -109,7 +140,11 @@ async function main() {
     const price        = (v.min_price * MARKUP).toFixed(2);
     const availability = v.total_qty > 0 ? "in stock" : "out of stock";
     const title        = esc(`${s.brandName} ${s.title || s.styleName}`);
-    const description  = esc(stripHtml(s.description) || `${s.brandName} ${s.title || s.styleName}`);
+    const cleanDesc    = stripHtml(s.description) || `${s.brandName} ${s.title || s.styleName}`;
+    const description  = esc(cleanDesc);
+    const gender       = getGender(s.title, s.styleName, s.baseCategory);
+    const ageGroup     = getAgeGroup(s.baseCategory);
+    const material     = extractMaterial(cleanDesc);
     const colorSlug    = (v.color_name || "").replace(/[^a-zA-Z0-9]/g, "_");
     const sizeSlug     = (v.size_name  || "").replace(/[^a-zA-Z0-9]/g, "_");
     const variantId    = `${v.style_id}_${colorSlug}_${sizeSlug}`;
@@ -126,6 +161,8 @@ async function main() {
       <g:brand>${esc(s.brandName)}</g:brand>
       <g:color>${esc(v.color_name)}</g:color>
       <g:size>${esc(v.size_name)}</g:size>
+      <g:gender>${gender}</g:gender>
+      <g:age_group>${ageGroup}</g:age_group>${material ? `\n      <g:material>${esc(material)}</g:material>` : ""}
       <g:condition>new</g:condition>
       <g:google_product_category>${GOOGLE_CATEGORY[s.baseCategory] || "212"}</g:google_product_category>
       <g:product_type>${esc(s.baseCategory || "Apparel")}</g:product_type>
