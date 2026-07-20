@@ -67,7 +67,7 @@ function parseUrlFilters(sp: URLSearchParams): { baseCategory: string; filters: 
       brand:       sp.get("brand") || "",
       minPrice:    sp.get("minPrice") || "",
       maxPrice:    sp.get("maxPrice") || "",
-      inStock:     sp.get("inStock") !== "false",
+      inStock:     sp.get("inStock") === "true",
       sustainable: sp.get("sustainable") === "true",
       newStyle:    sp.get("newStyle") === "true",
       categories:  cats,
@@ -77,7 +77,7 @@ function parseUrlFilters(sp: URLSearchParams): { baseCategory: string; filters: 
 
 const DEFAULT_FILTERS: FilterState = {
   search: "", brand: "", minPrice: "", maxPrice: "",
-  inStock: true, sustainable: false, newStyle: false, categories: {},
+  inStock: false, sustainable: false, newStyle: false, categories: {},
 };
 
 function StorefrontInner() {
