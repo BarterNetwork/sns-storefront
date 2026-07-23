@@ -60,6 +60,10 @@ export default function AdminGalleryPage() {
   const [bulkSub, setBulkSub] = useState("");
   const [bulkApplying, setBulkApplying] = useState(false);
 
+  // featured categories
+  const [featured, setFeatured] = useState<{category:string;subcategory:string}[]>([{category:"",subcategory:""},{category:"",subcategory:""},{category:"",subcategory:""}]);
+  const [featuredSaving, setFeaturedSaving] = useState(false);
+
   const dropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -67,7 +71,26 @@ export default function AdminGalleryPage() {
     if (saved) { setPassword(saved); setAuthed(true); }
   }, []);
 
-  useEffect(() => { if (authed) loadDesigns(); }, [authed]);
+  useEffect(() => { if (authed) { loadDesigns(); loadFeatured(); } }, [authed]);
+
+  const loadFeatured = async () => {
+    const res = await fetch("/api/admin/gallery/settings", { headers: { "x-admin-password": pw() } });
+    if (res.ok) {
+      const { featured: f } = await res.json();
+      const slots = [0,1,2].map(i => f[i] || { category: "", subcategory: "" });
+      setFeatured(slots);
+    }
+  };
+
+  const saveFeatured = async () => {
+    setFeaturedSaving(true);
+    await fetch("/api/admin/gallery/settings", {
+      method: "PUT",
+      headers: { "x-admin-password": pw(), "Content-Type": "application/json" },
+      body: JSON.stringify({ featured: featured.filter(Boolean) }),
+    });
+    setFeaturedSaving(false);
+  };
 
   const pw = () => password || sessionStorage.getItem("admin_pw") || "";
 
@@ -225,6 +248,40 @@ export default function AdminGalleryPage() {
       <div className="topbar">
         <h1>Design Gallery <span className="count">{designs.length} designs</span></h1>
         <a href="/" className="back">← Storefront</a>
+      </div>
+
+      {/* ── Featured Categories ── */}
+      <div className="section">
+        <h2>Featured Categories <span style={{color:"#555",fontWeight:400,fontSize:"0.8rem"}}>— shown by default in the designer</span></h2>
+        <div className="featured-slots">
+          {[0,1,2].map(i => {
+            const slot = featured[i];
+            const catOptions = Array.from(new Set(designs.map(d => d.category))).sort();
+            const subOptions = slot.category
+              ? Array.from(new Set(designs.filter(d => d.category === slot.category && d.subcategory).map(d => d.subcategory as string))).sort()
+              : [];
+            return (
+              <div key={i} className="featured-slot">
+                <p className="label">Slot {i+1}</p>
+                <select className="filter-select" value={slot.category}
+                  onChange={e => setFeatured(f => f.map((v,j) => j===i ? { category: e.target.value, subcategory: "" } : v))}>
+                  <option value="">— Category —</option>
+                  {catOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                {slot.category && (
+                  <select className="filter-select" value={slot.subcategory}
+                    onChange={e => setFeatured(f => f.map((v,j) => j===i ? { ...v, subcategory: e.target.value } : v))}>
+                    <option value="">— All subcategories —</option>
+                    {subOptions.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <button className="btn-gold-sm" style={{marginTop:"0.75rem"}} onClick={saveFeatured} disabled={featuredSaving}>
+          {featuredSaving ? "Saving…" : "Save Featured"}
+        </button>
       </div>
 
       {/* ── Upload ── */}
@@ -479,6 +536,8 @@ export default function AdminGalleryPage() {
         .btn-gold-sm:hover:not(:disabled) { background:#f0d99a; }
         .btn-gold-sm:disabled { opacity:0.4; cursor:default; }
 
+        .featured-slots { display:flex; gap:1.5rem; flex-wrap:wrap; }
+        .featured-slot { display:flex; flex-direction:column; gap:0.4rem; min-width:200px; }
         .designs-head { margin-bottom:1rem; }
         .filter-row { display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap; margin-bottom:0.6rem; }
         .filter-select { padding:0.4rem 0.65rem; background:#111; border:1px solid #2a2a2a; border-radius:7px; color:#f0ede8; font-size:0.8rem; font-family:inherit; outline:none; cursor:pointer; }

@@ -137,11 +137,10 @@ SELECT
   COUNT(DISTINCT p."colorName")    AS color_count,
   COUNT(DISTINCT p."sizeName")     AS size_count,
   SUM(p."qtyTotal")                AS total_qty,
-  MIN(p."colorFrontImage")         AS sample_image
+  s."styleImage"                   AS sample_image
 FROM styles s
 JOIN products p ON p."styleId" = s."styleID"
 WHERE p.active = TRUE
-  AND p."qtyTotal" > 0
 GROUP BY
   s."styleID", s."brandName", s."styleName", s.title,
   s.description, s."baseCategory", s."styleImage", s."brandImage",
