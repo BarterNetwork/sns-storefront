@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { applyMarkup } from "@/lib/pricing";
 
 /**
  * GET /api/products/[styleId]
@@ -52,9 +53,7 @@ export async function GET(
 
     if (skuErr) throw skuErr;
 
-    const MARKUP = 1.5;
-    const markUp = (p: number | null) =>
-      p != null ? Math.round(p * MARKUP * 100) / 100 : null;
+    const markUp = applyMarkup;
 
     // Group by color
     const colorMap: Record<string, any> = {};

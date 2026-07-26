@@ -122,7 +122,7 @@ function StorefrontInner() {
 
     // Show cached results instantly if available for this exact query
     try {
-      const cached = localStorage.getItem("catalog:" + apiUrl);
+      const cached = localStorage.getItem("catalog_v2:" + apiUrl);
       if (cached) {
         const { data, count, totalPages } = JSON.parse(cached);
         setProducts(data || []);
@@ -142,7 +142,7 @@ function StorefrontInner() {
         setCount(json.count || 0);
         setTotalPages(json.totalPages || 1);
         setLoading(false);
-        try { localStorage.setItem("catalog:" + apiUrl, JSON.stringify({ data: json.data, count: json.count, totalPages: json.totalPages })); } catch {}
+        try { localStorage.setItem("catalog_v2:" + apiUrl, JSON.stringify({ data: json.data, count: json.count, totalPages: json.totalPages })); } catch {}
       })
       .catch(() => {
         if (!cancelled) setLoading(false);

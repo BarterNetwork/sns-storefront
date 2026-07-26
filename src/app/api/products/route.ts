@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { applyMarkup, MARKUP } from "@/lib/pricing";
 
 /**
  * GET /api/products
@@ -114,9 +115,8 @@ export async function GET(req: NextRequest) {
     if (sustainable)   query = query.eq("sustainable", true);
     if (newStyle)      query = query.eq("new_style", true);
     if (inStock)       query = query.gt("total_qty", 0);
-    const PRICE_MARKUP = 1.5;
-    if (minPrice)      query = query.gte("min_price", parseFloat(minPrice) / PRICE_MARKUP);
-    if (maxPrice)      query = query.lte("min_price", parseFloat(maxPrice) / PRICE_MARKUP);
+    if (minPrice)      query = query.gte("min_price", parseFloat(minPrice) / MARKUP);
+    if (maxPrice)      query = query.lte("min_price", parseFloat(maxPrice) / MARKUP);
 
     if (brand) {
       const brands = brand.split(",").map(b => b.trim()).filter(Boolean);
@@ -150,9 +150,6 @@ export async function GET(req: NextRequest) {
     const { data, count, error } = await query;
     if (error) throw error;
 
-    const MARKUP = 1.5;
-    const markUp = (p: number | null) => p != null ? Math.round(p * MARKUP * 100) / 100 : null;
-
     const cleanTitle = (s: string | null): string | null => {
       if (!s) return null;
       return s.split('').filter(c => { const n = c.charCodeAt(0); return n < 0x80 || n > 0x9F; }).join('').replace(/ {2,}/g, ' ').trim();
@@ -161,8 +158,8 @@ export async function GET(req: NextRequest) {
       ...row,
       title:      cleanTitle(row.title)      ?? row.title,
       style_name: cleanTitle(row.style_name) ?? row.style_name,
-      min_price:  markUp(row.min_price),
-      max_price:  markUp(row.max_price),
+      min_price:  applyMarkup(row.min_price),
+      max_price:  applyMarkup(row.max_price),
     }));
 
     return NextResponse.json({
