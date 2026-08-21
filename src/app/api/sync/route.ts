@@ -66,21 +66,21 @@ export async function POST(req: NextRequest) {
           (wh.IL || 0) + (wh.FL || 0) + (wh.KS || 0) + (wh.TX || 0) +
           (wh.GA || 0) + (wh.NV || 0) + (wh.OH || 0) + (wh.PA || 0);
 
+        // Only update qty fields — never overwrite piecePrice from a daily sync.
+        // S&S returns promotional prices in piecePrice during sales; we preserve
+        // the original regular price set during bootstrap.
         return {
-          sku:            item.sku,
-          qtyTotal:       item.qty ?? total,
-          qtyIl:          wh.IL || 0,
-          qtyFl:          wh.FL || 0,
-          qtyKs:          wh.KS || 0,
-          qtyTx:          wh.TX || 0,
-          qtyGa:          wh.GA || 0,
-          qtyNv:          wh.NV || 0,
-          qtyOh:          wh.OH || 0,
-          qtyPa:          wh.PA || 0,
-          piecePrice:     item.piecePrice ?? null,
-          salePrice:      item.salePrice ?? null,
-          saleExpireDate: item.saleExpireDate || null,
-          updatedAt:      new Date().toISOString(),
+          sku:       item.sku,
+          qtyTotal:  item.qty ?? total,
+          qtyIl:     wh.IL || 0,
+          qtyFl:     wh.FL || 0,
+          qtyKs:     wh.KS || 0,
+          qtyTx:     wh.TX || 0,
+          qtyGa:     wh.GA || 0,
+          qtyNv:     wh.NV || 0,
+          qtyOh:     wh.OH || 0,
+          qtyPa:     wh.PA || 0,
+          updatedAt: new Date().toISOString(),
         };
       });
 
@@ -91,16 +91,9 @@ export async function POST(req: NextRequest) {
         if (error) throw new Error(`Inventory upsert: ${error.message}`);
       }
       log.push(`Updated inventory for ${rows.length} SKUs`);
-
-      // Deactivate SKUs no longer returned by the API
-      const activeSKUs = inventory.map((i: any) => i.sku);
-      if (activeSKUs.length > 0) {
-        await db
-          .from("products")
-          .update({ active: false, updatedAt: new Date().toISOString() })
-          .not("sku", "in", `(${activeSKUs.slice(0, 5000).map((s: string) => `"${s}"`).join(",")})`)
-          .eq("active", true);
-      }
+      // Do NOT deactivate products here — the Inventory endpoint only returns
+      // in-stock SKUs, so deactivating missing ones would hide out-of-stock
+      // products from the catalog. Deactivation only happens during full bootstrap.
     }
 
     // ── BOOTSTRAP ────────────────────────────────────────────────────────

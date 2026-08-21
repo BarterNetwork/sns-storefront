@@ -122,7 +122,7 @@ function StorefrontInner() {
 
     // Show cached results instantly if available for this exact query
     try {
-      const cached = localStorage.getItem("catalog_v2:" + apiUrl);
+      const cached = localStorage.getItem("catalog_v3:" + apiUrl);
       if (cached) {
         const { data, count, totalPages } = JSON.parse(cached);
         setProducts(data || []);
@@ -142,7 +142,7 @@ function StorefrontInner() {
         setCount(json.count || 0);
         setTotalPages(json.totalPages || 1);
         setLoading(false);
-        try { localStorage.setItem("catalog_v2:" + apiUrl, JSON.stringify({ data: json.data, count: json.count, totalPages: json.totalPages })); } catch {}
+        try { localStorage.setItem("catalog_v3:" + apiUrl, JSON.stringify({ data: json.data, count: json.count, totalPages: json.totalPages })); } catch {}
       })
       .catch(() => {
         if (!cancelled) setLoading(false);
@@ -160,10 +160,12 @@ function StorefrontInner() {
   }, [baseCategory, initialized]);
 
   // Reset page when filters/category change
-  const updateFilters = (f: FilterState) => { setFilters(f); setPage(1); };
+  const updateFilters = (f: FilterState) => { setLoading(true); setProducts([]); setFilters(f); setPage(1); };
   const updateCategory = (cat: string) => {
+    setLoading(true);
+    setProducts([]);
     setBaseCategory(cat);
-    setFilters(prev => ({ ...prev, categories: {} })); // clear category filters on nav
+    setFilters(prev => ({ ...prev, categories: {} }));
     setPage(1);
   };
 
