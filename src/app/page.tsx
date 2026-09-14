@@ -9,7 +9,7 @@ import InquiryModal from "@/components/InquiryModal";
 
 const CATEGORY_GROUPS = [
   "gender","bottom_type","outerwear_type","accessory_type","woven_type","knit_type",
-  "style","material","features",
+  "sleeve_length","neck_style","fit","style","material","features",
   "sustainability","special","weight","sport",
   "hat_type","bag_type",
 ];
@@ -95,6 +95,7 @@ function StorefrontInner() {
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [groups, setGroups] = useState<any>({});
   const [searchInput, setSearchInput] = useState("");
+  const [sort, setSort] = useState("popular");
 
   // Read URL params on mount — avoids useSearchParams() which causes Suspense flash
   useEffect(() => {
@@ -114,11 +115,11 @@ function StorefrontInner() {
     router.replace(buildPageUrl(filters, baseCategory, page), { scroll: false });
   }, [filters, baseCategory, page, initialized]);
 
-  // Fetch products whenever filters, category, or page change (skip before initialization)
+  // Fetch products whenever filters, category, page, or sort change (skip before initialization)
   useEffect(() => {
     if (!initialized) return;
     let cancelled = false;
-    const apiUrl = buildApiUrl(filters, baseCategory, page);
+    const apiUrl = buildApiUrl(filters, baseCategory, page) + (sort !== "popular" ? `&sort=${sort}` : "");
 
     // Show cached results instantly if available for this exact query
     try {
@@ -148,7 +149,7 @@ function StorefrontInner() {
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [filters, baseCategory, page, initialized]);
+  }, [filters, baseCategory, page, sort, initialized]);
 
   // Fetch filter groups when baseCategory changes (skip before initialization)
   useEffect(() => {
@@ -253,7 +254,19 @@ function StorefrontInner() {
         />
 
         <div className="grid-area">
-          {/* Mobile filter bar (rendered by FilterSidebar) */}
+          {/* Sort + result count bar */}
+          <div className="sort-bar">
+            <span className="result-count">{loading ? "…" : `${count.toLocaleString()} styles`}</span>
+            <select
+              value={sort}
+              onChange={e => { setLoading(true); setProducts([]); setSort(e.target.value); setPage(1); }}
+              className="sort-select"
+            >
+              <option value="popular">Most Popular</option>
+              <option value="price_asc">Price: Low to High</option>
+              <option value="price_desc">Price: High to Low</option>
+            </select>
+          </div>
 
           {loading ? (
             <div className="loading-grid">
@@ -344,6 +357,12 @@ function StorefrontInner() {
           padding: 1.25rem 2rem 4rem;
           display: flex; gap: 1.5rem; align-items: flex-start;
         }
+
+        /* Sort bar */
+        .sort-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+        .result-count { font-size: 0.78rem; color: #555; }
+        .sort-select { background: #111; border: 1px solid #2a2a2a; color: #ccc; font-size: 0.78rem; padding: 0.35rem 0.6rem; border-radius: 6px; cursor: pointer; font-family: inherit; }
+        .sort-select:focus { outline: none; border-color: #e8c97e55; }
 
         /* Grid */
         .grid-area { flex: 1; min-width: 0; }

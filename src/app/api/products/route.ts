@@ -35,7 +35,7 @@ import { applyMarkup, MARKUP } from "@/lib/pricing";
 
 const CATEGORY_GROUPS = [
   "gender", "bottom_type", "outerwear_type", "accessory_type", "woven_type", "knit_type",
-  "style", "material", "features",
+  "sleeve_length", "neck_style", "fit", "style", "material", "features",
   "sustainability", "special", "weight", "sport",
   "hat_type", "bag_type",
 ];
@@ -80,6 +80,7 @@ export async function GET(req: NextRequest) {
   const maxPrice     = sp.get("maxPrice");
   const sustainable  = sp.get("sustainable") === "true";
   const newStyle     = sp.get("newStyle") === "true";
+  const sort         = sp.get("sort") || "popular"; // popular | price_asc | price_desc
   const page         = Math.max(1, parseInt(sp.get("page") || "1"));
   const limit        = Math.min(96, parseInt(sp.get("limit") || "24"));
   const offset       = (page - 1) * limit;
@@ -143,9 +144,11 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    query = query
-      .order("total_qty", { ascending: false })
-      .range(offset, offset + limit - 1);
+    if (sort === "price_asc")  query = query.order("min_price", { ascending: true });
+    else if (sort === "price_desc") query = query.order("min_price", { ascending: false });
+    else query = query.order("total_qty", { ascending: false });
+
+    query = query.range(offset, offset + limit - 1);
 
     const { data, count, error } = await query;
     if (error) throw error;

@@ -5,7 +5,7 @@ import { useState } from "react";
 const GROUP_ORDER = [
   "gender",
   "bottom_type", "outerwear_type", "accessory_type", "woven_type", "knit_type",
-  "style", "material", "features",
+  "sleeve_length", "neck_style", "fit", "style", "material", "features",
   "sustainability", "special", "weight", "sport",
   "hat_type", "bag_type",
 ];
