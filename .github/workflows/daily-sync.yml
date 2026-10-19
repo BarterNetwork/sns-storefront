@@ -1,10 +1,9 @@
-name: Daily SNS Inventory Sync
+name: SNS Inventory Sync
 
 on:
   schedule:
-    # Runs every day at 4:00 AM UTC (11pm ET / 10pm CT)
-    # Adjust to your preferred time using https://crontab.guru
-    - cron: '0 4 * * *'
+    # Runs every 3 days at 4:00 AM UTC to reduce DB write volume
+    - cron: '0 4 */3 * *'
 
   # Also allow manual trigger from GitHub Actions UI
   workflow_dispatch:

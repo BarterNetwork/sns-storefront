@@ -65,35 +65,32 @@ export async function POST(req: NextRequest) {
         const total =
           (wh.IL || 0) + (wh.FL || 0) + (wh.KS || 0) + (wh.TX || 0) +
           (wh.GA || 0) + (wh.NV || 0) + (wh.OH || 0) + (wh.PA || 0);
-
-        // Only update qty fields — never overwrite piecePrice from a daily sync.
-        // S&S returns promotional prices in piecePrice during sales; we preserve
-        // the original regular price set during bootstrap.
         return {
-          sku:       item.sku,
-          qtyTotal:  item.qty ?? total,
-          qtyIl:     wh.IL || 0,
-          qtyFl:     wh.FL || 0,
-          qtyKs:     wh.KS || 0,
-          qtyTx:     wh.TX || 0,
-          qtyGa:     wh.GA || 0,
-          qtyNv:     wh.NV || 0,
-          qtyOh:     wh.OH || 0,
-          qtyPa:     wh.PA || 0,
-          updatedAt: new Date().toISOString(),
+          sku:      item.sku,
+          qtyTotal: item.qty ?? total,
+          qtyIl:    wh.IL || 0,
+          qtyFl:    wh.FL || 0,
+          qtyKs:    wh.KS || 0,
+          qtyTx:    wh.TX || 0,
+          qtyGa:    wh.GA || 0,
+          qtyNv:    wh.NV || 0,
+          qtyOh:    wh.OH || 0,
+          qtyPa:    wh.PA || 0,
         };
       });
 
-      for (let i = 0; i < rows.length; i += 500) {
-        const { error } = await db
-          .from("products")
-          .upsert(rows.slice(i, i + 500), { onConflict: "sku" });
-        if (error) throw new Error(`Inventory upsert: ${error.message}`);
+      // Delta upsert — only write rows where qty actually changed.
+      // Avoids creating dead tuples for unchanged rows, cutting DB bloat significantly.
+      let totalUpdated = 0;
+      const BATCH = 2000;
+      for (let i = 0; i < rows.length; i += BATCH) {
+        const { data, error } = await db.rpc("upsert_inventory_delta", {
+          batch: rows.slice(i, i + BATCH),
+        });
+        if (error) throw new Error(`Inventory delta: ${error.message}`);
+        totalUpdated += (data as number) || 0;
       }
-      log.push(`Updated inventory for ${rows.length} SKUs`);
-      // Do NOT deactivate products here — the Inventory endpoint only returns
-      // in-stock SKUs, so deactivating missing ones would hide out-of-stock
-      // products from the catalog. Deactivation only happens during full bootstrap.
+      log.push(`Delta update: ${totalUpdated}/${rows.length} SKUs had inventory changes`);
     }
 
     // ── BOOTSTRAP ────────────────────────────────────────────────────────
