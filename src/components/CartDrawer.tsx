@@ -22,9 +22,23 @@ export default function CartDrawer() {
     setErr("");
     setChecking(true);
 
-    const itemLines = items.map(i =>
-      `• ${i.brandName} ${i.styleName} — ${i.colorName}, ${i.sizeName} × ${i.qty} @ $${i.price.toFixed(2)}`
-    ).join("\n");
+    const itemLines = items.map(i => {
+      if (i.shotGlass) {
+        const sg = i.shotGlass;
+        const lines: string[] = [
+          `• Shot Glass: ${sg.designName} (${sg.occasionName})`,
+          `  ${sg.glassQty}× ${sg.glassSize} glass${sg.glassQty !== 1 ? "es" : ""} — ${sg.packagingType !== "none" ? sg.packagingType.replace(/_/g, " ") : "no packaging"}`,
+        ];
+        const deco = [sg.addBow && "bow", sg.addRibbon && "ribbon", sg.addUvSticker && "UV sticker"].filter(Boolean).join(", ");
+        if (deco) lines.push(`  Decorations: ${deco}`);
+        if (sg.personalizationLines.length) lines.push(`  Text: ${sg.personalizationLines.join(" / ")}`);
+        if (sg.photoUrls.length) lines.push(`  Photos: ${sg.photoUrls.length} attached`);
+        if (sg.design2Name) lines.push(`  2nd design: ${sg.design2Name}`);
+        lines.push(`  Total: $${i.price.toFixed(2)} BB`);
+        return lines.join("\n");
+      }
+      return `• ${i.brandName} ${i.styleName} — ${i.colorName}, ${i.sizeName} × ${i.qty} @ $${i.price.toFixed(2)}`;
+    }).join("\n");
 
     const body = {
       customer_name: name,

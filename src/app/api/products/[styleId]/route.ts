@@ -83,7 +83,7 @@ export async function GET(
       colorMap[key].sizes.push({
         sku:        sku.sku,
         sizeName:   sku.sizeName,
-        piecePrice: markUp(sku.piecePrice),
+        piecePrice: markUp(sku.piecePrice),  // always use regular piecePrice, never salePrice
         qtyTotal:   sku.qtyTotal,
         closeout:   sku.closeout,
       });

@@ -1,6 +1,13 @@
 "use client";
 
-export const CATEGORIES = [
+import { useRouter } from "next/navigation";
+
+export const CATEGORIES: Array<{
+  label: string;
+  value: string;
+  subs: { label: string; value: string }[];
+  href?: string;
+}> = [
   { label: "All",         value: "",                    subs: [] },
   {
     label: "T-Shirts",
@@ -29,6 +36,7 @@ export const CATEGORIES = [
   { label: "Accessories", value: "Accessories",      subs: [] },
   { label: "Polos",       value: "Polos",            subs: [] },
   { label: "Knits",       value: "Knits & Layering", subs: [] },
+  { label: "Shot Glasses", value: "__shot_glasses__", subs: [], href: "/shot-glasses" },
 ];
 
 interface Props {
@@ -37,6 +45,7 @@ interface Props {
 }
 
 export default function CategoryNav({ baseCategory, onBaseCategory }: Props) {
+  const router = useRouter();
   const active = CATEGORIES.find(c =>
     c.value === baseCategory ||
     c.subs.some(s => s.value === baseCategory) ||
@@ -60,7 +69,7 @@ export default function CategoryNav({ baseCategory, onBaseCategory }: Props) {
             <button
               key={c.label}
               className={`parent-tab ${isActive ? "active" : ""}`}
-              onClick={() => onBaseCategory(c.value)}
+              onClick={() => c.href ? router.push(c.href) : onBaseCategory(c.value)}
             >
               {c.label}
             </button>

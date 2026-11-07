@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import Providers from "@/components/Providers";
 
 export const metadata: Metadata = {
   title: "T-Shirt Depot & More | Wholesale Apparel",
@@ -44,7 +45,9 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body data-gramm="false" data-gramm_editor="false" data-enable-grammarly="false">{children}</body>
+      <body data-gramm="false" data-gramm_editor="false" data-enable-grammarly="false">
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }

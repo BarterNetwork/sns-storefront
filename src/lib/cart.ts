@@ -1,3 +1,27 @@
+export interface ShotGlassCartConfig {
+  occasionSlug: string;
+  occasionName: string;
+  designId: number | null;
+  designName: string;
+  design2Id?: number | null;
+  design2Name?: string;
+  glassSize: "standard" | "tall";
+  glassQty: number;
+  packagingType: string;
+  packagingQty: number;
+  addBow: boolean;
+  addRibbon: boolean;
+  addUvSticker: boolean;
+  bowColor?: string;
+  ribbonColor?: string;
+  uvStickerText?: string;
+  personalizationLines: string[];
+  photoUrls: string[];
+  priceBreakdown: Record<string, unknown>;
+  totalCents: number;
+  notes?: string;
+}
+
 export interface CartItem {
   sku: string;
   styleId: number;
@@ -9,6 +33,7 @@ export interface CartItem {
   price: number;
   qty: number;
   image: string | null;
+  shotGlass?: ShotGlassCartConfig;
 }
 
 const KEY = "tsd_cart";
