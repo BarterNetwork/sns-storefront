@@ -192,11 +192,12 @@ export async function POST(req: NextRequest) {
     }
 
     // Refresh the materialized view so the catalog reflects updated data
-    await db.rpc("refresh_style_summary").then(() => {
+    try {
+      await db.rpc("refresh_style_summary");
       log.push("style_summary refreshed");
-    }).catch((e: any) => {
+    } catch (e: any) {
       log.push(`style_summary refresh skipped: ${e.message}`);
-    });
+    }
 
     await db.from("sync_log").insert({
       mode,
