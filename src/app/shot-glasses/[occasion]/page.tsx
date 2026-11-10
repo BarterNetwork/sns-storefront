@@ -83,10 +83,7 @@ export default function OccasionPage() {
   const [addUvSticker, setAddUvSticker] = useState(false);
   const [uvStickerText, setUvStickerText] = useState("");
 
-  // Contact / submit
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
+  // Submit
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -143,7 +140,7 @@ export default function OccasionPage() {
     setRibbonColor("");
     setPersonalizationLines([""]);
     setPhotos([]);
-    setName(""); setEmail(""); setPhone(""); setNotes("");
+    setNotes("");
     setSubmitError("");
     setPanelOpen(true);
   }, []);
@@ -235,9 +232,6 @@ export default function OccasionPage() {
           photo_urls: photoUrls,
           personalization_lines: personalizationLines.filter(l => l.trim()),
           total_cents: breakdown.totalCents,
-          customer_name: name.trim() || null,
-          customer_email: email.trim().toLowerCase() || null,
-          customer_phone: phone.trim() || null,
           notes: notes || null,
         }),
       });
@@ -668,23 +662,19 @@ export default function OccasionPage() {
                   </div>
 
                   <div className="option-group">
-                    <div className="option-label">Your contact info</div>
-                    <input className="text-input" placeholder="Full name *" value={name} onChange={e => setName(e.target.value)} />
-                    <input className="text-input" type="email" placeholder="Email address *" value={email} onChange={e => setEmail(e.target.value)} />
-                    <input className="text-input" type="tel" placeholder="Phone (optional)" value={phone} onChange={e => setPhone(e.target.value)} />
-                    <textarea className="text-input" rows={2} placeholder="Additional notes…" value={notes} onChange={e => setNotes(e.target.value)} />
+                    <div className="option-label">Order notes (optional)</div>
+                    <textarea className="text-input" rows={2} placeholder="Any special instructions…" value={notes} onChange={e => setNotes(e.target.value)} />
                   </div>
 
                   <p className="disclaimer">
-                    Adding to cart submits an inquiry. We'll confirm all personalization details with you before production.
-                    Payment is arranged via Barter Bucks.
+                    We'll confirm personalization details before production. Pay with Barter Bucks at checkout.
                   </p>
 
                   {submitError && <p className="field-error">{submitError}</p>}
 
                   <button
                     className="btn-gold submit-btn"
-                    disabled={submitting || !name.trim() || !email.trim()}
+                    disabled={submitting}
                     onClick={handleAddToCart}
                   >
                     {submitting ? "Adding…" : `Add to Cart · ${formatCents(breakdown.totalCents)}`}

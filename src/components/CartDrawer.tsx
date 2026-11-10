@@ -133,14 +133,14 @@ export default function CartDrawer() {
             </div>
 
             <form className="checkout-form" onSubmit={handleSubmit}>
-              <p className="form-label">Request your order with Barter Bucks:</p>
+              <p className="form-label">Your contact info to complete the order:</p>
               <input className="input" placeholder="Your name *" value={name} onChange={e => setName(e.target.value)} />
               <input className="input" placeholder="Email *" type="email" value={email} onChange={e => setEmail(e.target.value)} />
               <input className="input" placeholder="Phone (optional)" value={phone} onChange={e => setPhone(e.target.value)} />
               <textarea className="input textarea" placeholder="Any notes about your order…" value={message} onChange={e => setMessage(e.target.value)} rows={2} />
               {err && <p className="err">{err}</p>}
               <button className="submit-btn" type="submit" disabled={checking}>
-                {checking ? "Submitting…" : `Submit Order · $${total.toFixed(2)} BB`}
+                {checking ? "Placing order…" : `Place Order · $${total.toFixed(2)} BB`}
               </button>
             </form>
           </>
