@@ -54,6 +54,7 @@ export default function OccasionPage() {
   const [loading, setLoading] = useState(true);
 
   // Configurator state
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const [selectedDesign, setSelectedDesign] = useState<Design | null>(null);
   const [selectedImageIdx, setSelectedImageIdx] = useState(0);
@@ -318,7 +319,7 @@ export default function OccasionPage() {
                 <div className="design-img-wrap">
                   {d.image_urls?.[0] ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={d.image_urls[0]} alt={d.name} className="design-img" />
+                    <img src={d.image_urls[0]} alt={d.name} className="design-img" onClick={e => { e.stopPropagation(); setLightboxUrl(d.image_urls[0]); }} />
                   ) : (
                     <div className="design-img-placeholder">🥃</div>
                   )}
@@ -342,7 +343,7 @@ export default function OccasionPage() {
 
             {/* Left column — image */}
             <div className="panel-left">
-              <div className="preview-img-wrap">
+              <div className="preview-img-wrap" style={{ cursor: "zoom-in" }} onClick={() => { const u = selectedDesign.image_urls?.[selectedImageIdx]; if (u) setLightboxUrl(u); }}>
                 {selectedDesign.image_urls?.[selectedImageIdx] ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={selectedDesign.image_urls[selectedImageIdx]} alt={selectedDesign.name} className="preview-img" />
@@ -705,6 +706,15 @@ export default function OccasionPage() {
         </div>
       )}
 
+      {/* Lightbox */}
+      {lightboxUrl && (
+        <div className="lightbox" onClick={() => setLightboxUrl(null)}>
+          <button className="lightbox-close" onClick={() => setLightboxUrl(null)}>✕</button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={lightboxUrl} alt="" className="lightbox-img" onClick={e => e.stopPropagation()} />
+        </div>
+      )}
+
       {/* Design 2 picker modal */}
       {showDesign2Picker && (
         <div className="panel-overlay" onClick={() => setShowDesign2Picker(false)}>
@@ -731,6 +741,10 @@ export default function OccasionPage() {
       )}
 
       <style jsx>{`
+        .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 300; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+        .lightbox-close { position: absolute; top: 1rem; right: 1rem; background: rgba(0,0,0,0.6); border: 1px solid #444; color: #ccc; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; }
+        .lightbox-close:hover { border-color: #aaa; color: #fff; }
+        .lightbox-img { max-width: 95vw; max-height: 90vh; object-fit: contain; border-radius: 8px; box-shadow: 0 8px 40px rgba(0,0,0,0.6); }
         .d2-modal { background: #111; border: 1px solid #222; border-radius: 12px; width: min(560px, 96vw); max-height: 70vh; display: flex; flex-direction: column; overflow: hidden; }
         .page { min-height: 100vh; background: #0a0a0a; color: #f0ede8; font-family: 'DM Sans', sans-serif; }
         .site-header { border-bottom: 1px solid #1a1a1a; padding: 0.9rem 2rem; }
@@ -750,7 +764,7 @@ export default function OccasionPage() {
         .design-card { background: #111; border: 1px solid #1e1e1e; border-radius: 10px; overflow: hidden; cursor: pointer; transition: border-color 0.2s, transform 0.15s; }
         .design-card:hover { border-color: #e8c97e55; transform: translateY(-2px); }
         .design-img-wrap { aspect-ratio: 1; overflow: hidden; background: #161616; display: flex; align-items: center; justify-content: center; position: relative; }
-        .design-img { width: 100%; height: 100%; object-fit: contain; }
+        .design-img { width: 100%; height: 100%; object-fit: contain; cursor: zoom-in; }
         .design-img-placeholder { font-size: 2.5rem; }
         .img-count { position: absolute; bottom: 6px; right: 8px; background: #000a; color: #ccc; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; }
         .design-info { padding: 0.85rem 1rem; display: flex; flex-direction: column; gap: 0.3rem; }

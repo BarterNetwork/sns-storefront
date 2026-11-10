@@ -51,8 +51,8 @@ export async function POST(req: NextRequest) {
     const { data, error } = await admin
       .from("shot_glass_orders")
       .insert({
-        customer_name:         body.customer_name?.trim() || null,
-        customer_email:        body.customer_email?.trim().toLowerCase() || null,
+        customer_name:         body.customer_name?.trim() || "",
+        customer_email:        body.customer_email?.trim().toLowerCase() || "",
         customer_phone:        body.customer_phone?.trim() || null,
         occasion_slug:         body.occasion_slug || null,
         design_id:             body.design_id || null,

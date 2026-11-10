@@ -18,7 +18,7 @@ export default function ShotGlassesPage() {
   const [occasions, setOccasions] = useState<Occasion[]>([]);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
-    fetch("/api/shot-glasses/occasions")
+    fetch("/api/shot-glasses/occasions", { cache: "no-store" })
       .then(r => r.json())
       .then(d => { setOccasions(d.data || []); setLoading(false); })
       .catch(() => setLoading(false));

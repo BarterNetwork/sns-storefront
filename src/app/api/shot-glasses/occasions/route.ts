@@ -67,5 +67,7 @@ export async function GET(_req: NextRequest) {
     }))
     .filter(o => o.design_count > 0);
 
-  return NextResponse.json({ data: result });
+  return NextResponse.json({ data: result }, {
+    headers: { "Cache-Control": "no-store, max-age=0" },
+  });
 }
