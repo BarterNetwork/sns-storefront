@@ -17,17 +17,10 @@ export default function ShotGlassesPage() {
   const router = useRouter();
   const [occasions, setOccasions] = useState<Occasion[]>([]);
   const [loading, setLoading] = useState(true);
-  const [featuredImages, setFeaturedImages] = useState<string[]>([]);
-
   useEffect(() => {
     fetch("/api/shot-glasses/occasions")
       .then(r => r.json())
-      .then(d => {
-        const list: Occasion[] = d.data || [];
-        setOccasions(list);
-        setFeaturedImages(list.slice(0, 4).map(o => o.thumbnail).filter(Boolean) as string[]);
-        setLoading(false);
-      })
+      .then(d => { setOccasions(d.data || []); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
 
@@ -38,40 +31,15 @@ export default function ShotGlassesPage() {
           <button className="back-btn" onClick={() => router.push("/")}>← Back to Apparel</button>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.png" alt="T-Shirt Depot & More" width={44} height={44} style={{ height: 44, width: 44, objectFit: "contain" }} />
-          <span className="header-tagline">Buy with Barter Bucks</span>
+          <span className="header-tagline">Custom Gift Collections</span>
         </div>
       </header>
 
-      <section className="hero">
-        <div className="hero-inner">
-          <div className="hero-left">
-            <div className="hero-eyebrow">Custom Gifts · Pay with Barter Bucks</div>
-            <h1 className="hero-title">Personalized<br />Shot Glasses</h1>
-            <p className="hero-body">
-              Names, photos, dates, and custom messages — personalization is always included.
-            </p>
-            <div className="hero-chips">
-              <span className="chip">From $10 each</span>
-              <span className="chip">Bulk: as low as $5</span>
-              <span className="chip">Gift packaging available</span>
-              <span className="chip gold">Barter Bucks accepted</span>
-            </div>
-            <button className="hero-cta" onClick={() => document.getElementById("occasions")?.scrollIntoView({ behavior: "smooth" })}>
-              Shop All Occasions ↓
-            </button>
-          </div>
-          <div className="hero-right">
-            {featuredImages.length > 0 ? (
-              <div className="hero-img-grid">
-                {featuredImages.map((src, i) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img key={i} src={src} alt="" className={`hero-img hero-img-${i}`} />
-                ))}
-              </div>
-            ) : (
-              <div className="hero-img-placeholder">🥃</div>
-            )}
-          </div>
+      <section className="banner">
+        <div className="banner-inner">
+          <div className="banner-eyebrow">Custom Gifts</div>
+          <h1 className="banner-title">Personalized Shot Glasses</h1>
+          <p className="banner-sub">Names · Photos · Dates · Custom Messages — Personalization Included</p>
         </div>
       </section>
 
@@ -158,29 +126,11 @@ export default function ShotGlassesPage() {
         .back-btn:hover { border-color: #e8c97e; color: #e8c97e; }
         .header-tagline { font-size: 0.72rem; color: #444; margin-left: auto; letter-spacing: 0.04em; }
 
-        .hero { padding: 0; border-bottom: 1px solid #161616; background: radial-gradient(ellipse 70% 60% at 80% 50%, #1a1500 0%, #0a0a0a 65%); overflow: hidden; }
-        .hero-inner { max-width: 1200px; margin: 0 auto; display: flex; align-items: center; min-height: 380px; padding: 3rem 2rem; gap: 2rem; }
-        .hero-left { flex: 1; min-width: 0; z-index: 1; }
-        .hero-right { flex: 0 0 340px; display: flex; align-items: center; justify-content: center; }
-
-        .hero-eyebrow { font-size: 0.72rem; letter-spacing: 0.18em; text-transform: uppercase; color: #e8c97e; margin-bottom: 0.6rem; font-weight: 600; }
-        .hero-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(3rem, 7vw, 5rem); letter-spacing: 0.04em; line-height: 0.95; margin: 0 0 1rem; }
-        .hero-body { font-size: 0.9rem; color: #888; max-width: 400px; line-height: 1.65; margin: 0 0 1.25rem; }
-
-        .hero-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1.5rem; }
-        .chip { background: #1a1a1a; border: 1px solid #2a2a2a; color: #aaa; font-size: 0.72rem; padding: 0.3rem 0.7rem; border-radius: 20px; white-space: nowrap; }
-        .chip.gold { background: #1e1a00; border-color: #e8c97e44; color: #e8c97e; font-weight: 600; }
-
-        .hero-cta { background: #e8c97e; color: #0a0a0a; font-size: 0.88rem; font-weight: 700; font-family: inherit; padding: 0.7rem 1.5rem; border: none; border-radius: 8px; cursor: pointer; transition: background 0.2s; letter-spacing: 0.03em; }
-        .hero-cta:hover { background: #f0d88e; }
-
-        .hero-img-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; width: 100%; }
-        .hero-img { width: 100%; aspect-ratio: 1; object-fit: contain; border-radius: 10px; background: #161616; border: 1px solid #1e1e1e; }
-        .hero-img-0 { grid-column: 1; grid-row: 1; }
-        .hero-img-1 { grid-column: 2; grid-row: 1; transform: translateY(1rem); }
-        .hero-img-2 { grid-column: 1; grid-row: 2; transform: translateY(-0.5rem); }
-        .hero-img-3 { grid-column: 2; grid-row: 2; transform: translateY(0.5rem); }
-        .hero-img-placeholder { font-size: 5rem; opacity: 0.3; }
+        .banner { border-bottom: 1px solid #1a1a1a; background: linear-gradient(180deg, #111 0%, #0a0a0a 100%); }
+        .banner-inner { max-width: 1200px; margin: 0 auto; padding: 2.5rem 2rem 2rem; text-align: center; }
+        .banner-eyebrow { font-size: 0.7rem; letter-spacing: 0.22em; text-transform: uppercase; color: #e8c97e; font-weight: 600; margin-bottom: 0.5rem; }
+        .banner-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(2.6rem, 8vw, 4.5rem); letter-spacing: 0.06em; line-height: 1; margin: 0 0 0.6rem; color: #f0ede8; }
+        .banner-sub { font-size: 0.78rem; color: #555; letter-spacing: 0.08em; text-transform: uppercase; margin: 0; }
 
         .main { max-width: 1200px; margin: 0 auto; padding: 2.5rem 2rem 4rem; }
         .section-header { margin-bottom: 1.75rem; }
@@ -210,11 +160,7 @@ export default function ShotGlassesPage() {
         .strip-note { font-size: 0.75rem; color: #555; margin: 0; border-top: 1px solid #1e1e1e; padding-top: 0.85rem; }
 
         @media (max-width: 768px) {
-          .hero-inner { flex-direction: column-reverse; min-height: auto; padding: 1.5rem 1rem 2rem; gap: 1.25rem; }
-          .hero-right { flex: none; width: 100%; max-width: 320px; margin: 0 auto; }
-          .hero-img-grid { gap: 0.5rem; }
-          .hero-img-1, .hero-img-2, .hero-img-3 { transform: none; }
-          .hero-title { font-size: clamp(2.8rem, 11vw, 4rem); }
+          .banner-inner { padding: 1.75rem 1rem 1.5rem; }
           .main { padding: 1.5rem 1rem 3rem; }
           .occasions-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
         }
