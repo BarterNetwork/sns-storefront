@@ -1,14 +1,23 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { requireCollectionManager } from "@/lib/barter-auth-server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { Collection, CollectionProduct, clampPlacement, toSleeveMode } from "@/lib/collections";
 
 export const DESIGN_BUCKET = "gallery-designs";
 
-export function isAdmin(req: NextRequest) {
-  return req.headers.get("x-admin-password") === process.env.ADMIN_PASSWORD;
+/** Only the T-Shirt Depot Barter Network profile may manage collections. Returns an error response, or null if allowed. */
+export async function managerGuard(req: NextRequest): Promise<NextResponse | null> {
+  const r = await requireCollectionManager(req);
+  if ("status" in r) {
+    return NextResponse.json(
+      { error: r.status === 401 ? "Please sign in with your T-Shirt Depot account." : "This account can't manage design collections." },
+      { status: r.status },
+    );
+  }
+  return null;
 }
 
-const COLLECTION_COLS = "id, slug, name, description, design_url, storage_path, left_sleeve_url, right_sleeve_url, active, sort_order, created_at";
+const COLLECTION_COLS = "id, slug, name, description, design_url, storage_path, left_sleeve_url, right_sleeve_url, photo_url, active, sort_order, created_at";
 const PRODUCT_COLS = "id, collection_id, style_id, label, print_location, placement, print_fee, default_color, allowed_colors, left_sleeve, right_sleeve, sort_order";
 
 function normalizeProduct(row: any): CollectionProduct {
@@ -131,23 +140,30 @@ export function sanitizeProducts(input: unknown): Omit<CollectionProduct, "id">[
   return out;
 }
 
+/** Fixed storage path of a collection's listing photo (overwritten on each save). */
+export function coverPath(collectionId: string) {
+  return `collections/covers/${collectionId.replace(/[^a-f0-9-]/gi, "")}.png`;
+}
+
 /** Storage path for a URL this feature uploaded (…/gallery-designs/collections/…), else null. */
 export function uploadedPathFromUrl(url: string | null | undefined): string | null {
   if (!url) return null;
   const marker = `/${DESIGN_BUCKET}/collections/`;
   const i = url.indexOf(marker);
-  return i === -1 ? null : decodeURIComponent(url.slice(i + DESIGN_BUCKET.length + 2));
+  return i === -1 ? null : decodeURIComponent(url.slice(i + DESIGN_BUCKET.length + 2).split("?")[0]);
 }
 
 /** Upload an image to the designs bucket under collections/. Returns its public URL and path. */
-export async function uploadCollectionImage(file: File): Promise<{ url: string; path: string }> {
+export async function uploadCollectionImage(file: File, fixedPath?: string): Promise<{ url: string; path: string }> {
   const db = supabaseAdmin();
   const { data: buckets } = await db.storage.listBuckets();
   if (!buckets?.find(b => b.name === DESIGN_BUCKET)) await db.storage.createBucket(DESIGN_BUCKET, { public: true });
   const ext = (file.name.split(".").pop() || "png").toLowerCase().replace(/[^a-z0-9]/g, "") || "png";
-  const path = `collections/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const path = fixedPath || `collections/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
   const { error } = await db.storage.from(DESIGN_BUCKET)
-    .upload(path, await file.arrayBuffer(), { contentType: file.type, upsert: false });
+    .upload(path, await file.arrayBuffer(), { contentType: file.type, upsert: !!fixedPath, cacheControl: fixedPath ? "60" : "3600" });
   if (error) throw error;
-  return { url: db.storage.from(DESIGN_BUCKET).getPublicUrl(path).data.publicUrl, path };
+  const url = db.storage.from(DESIGN_BUCKET).getPublicUrl(path).data.publicUrl;
+  // Overwritten files keep their URL — add a version so browsers/CDNs show the new one
+  return { url: fixedPath ? `${url}?v=${Date.now()}` : url, path };
 }

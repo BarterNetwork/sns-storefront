@@ -46,7 +46,12 @@ export default function CollectionsPage() {
           const img = first.print_location === "Back" ? (first.card?.backImage || first.card?.frontImage) : first.card?.frontImage;
           return (
             <a key={c.id} href={`/collections/${c.slug}`} className="card">
-              <DesignMockup garmentImage={img || null} designUrl={c.design_url} placement={first.placement} alt={c.name} />
+              {c.photo_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={c.photo_url} alt={c.name} className="photo" />
+              ) : (
+                <DesignMockup garmentImage={img || null} designUrl={c.design_url} placement={first.placement} alt={c.name} />
+              )}
               <div className="card-body">
                 <h2>{c.name}</h2>
                 <p className="avail">
@@ -74,6 +79,7 @@ export default function CollectionsPage() {
         .card { background: #111; border: 1px solid #1c1c1c; border-radius: 12px; overflow: hidden; text-decoration: none; color: inherit; transition: border-color 0.2s, transform 0.2s; }
         .card:hover { border-color: #e8c97e66; transform: translateY(-2px); }
         .card-body { padding: 0.85rem 1rem 1rem; }
+        .photo { display: block; width: 100%; aspect-ratio: 4 / 5; object-fit: cover; }
         h2 { font-size: 1rem; margin: 0 0 0.3rem; }
         .avail { font-size: 0.78rem; color: #888; margin: 0; }
         .skeleton { aspect-ratio: 0.82; background: #141414; border-radius: 12px; animation: pulse 1.4s ease-in-out infinite; }

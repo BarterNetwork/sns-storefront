@@ -13,4 +13,9 @@
 
 ## Someday
 
+- [ ] **Design collections for other Barter Network profiles** - today collections belong to T-Shirt Depot only (added 2026-11-14)
+  - Already done: managing collections uses the Barter Network profile login (T-Shirt Depot's account), not ADMIN_PASSWORD
+  - Tag each collection with an owner profile; each profile manages only its own (allowed accounts: COLLECTION_MANAGER_IDS)
+  - Decide where other profiles' collections appear (their own page vs. the T-Shirt Depot shop)
+
 ## Done

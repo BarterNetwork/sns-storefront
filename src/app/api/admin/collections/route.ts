@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { slugify } from "@/lib/collections";
-import { isAdmin, loadCollections, uploadCollectionImage } from "@/lib/collections-server";
+import { managerGuard, loadCollections, uploadCollectionImage } from "@/lib/collections-server";
 
 /** GET /api/admin/collections — every collection, active or not. */
 export async function GET(req: NextRequest) {
-  if (!isAdmin(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const denied = await managerGuard(req);
+  if (denied) return denied;
   try {
     return NextResponse.json({ data: await loadCollections() });
   } catch (err: any) {
@@ -18,7 +19,8 @@ export async function GET(req: NextRequest) {
  * multipart form: name, description?, and either `file` (design image) or `design_url`.
  */
 export async function POST(req: NextRequest) {
-  if (!isAdmin(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const denied = await managerGuard(req);
+  if (denied) return denied;
 
   const form = await req.formData();
   const name = (form.get("name") as string | null)?.trim();

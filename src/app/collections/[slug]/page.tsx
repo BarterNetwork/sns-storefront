@@ -6,6 +6,7 @@ import DesignMockup from "@/components/DesignMockup";
 import { useCart } from "@/context/CartContext";
 import { CollectionProduct, SLEEVE_SIDES, SleeveSide, basePrintFee, imageSrc, printFeeFor, sleeveArt, sleeveFee, sleeveModeFor } from "@/lib/collections";
 import type { StyleColor } from "@/lib/style-detail";
+import { swatchColor } from "@/lib/color-hex";
 
 type DetailProduct = CollectionProduct & { style: any; colors: StyleColor[] };
 interface Detail { id: string; slug: string; name: string; description: string | null; design_url: string; left_sleeve_url: string | null; right_sleeve_url: string | null; products: DetailProduct[] }
@@ -13,7 +14,7 @@ interface Detail { id: string; slug: string; name: string; description: string |
 const photoFor = (p: DetailProduct, c: StyleColor | undefined) =>
   (p.print_location === "Back" ? (c?.backImage || c?.frontImage) : c?.frontImage) || p.style?.styleImage || null;
 
-const swatchBg = (c: StyleColor) => c.colorHex ? `#${c.colorHex.replace("#", "")}` : "#777";
+const swatchBg = (c: StyleColor) => swatchColor(c);
 
 export default function CollectionDetailPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -127,6 +128,7 @@ export default function CollectionDetailPage() {
         {/* Preview */}
         <div className="preview">
           <DesignMockup garmentImage={photoFor(product, color)} designUrl={data.design_url} placement={product.placement}
+            sleeves={activeSleeves.map(side => ({ side, url: sleeveArt(data, side)! }))}
             alt={`${data.name} on ${product.label || product.style?.title}`} />
           <p className="print-note">
             {[product.print_location, ...activeSleeves.map(sd => `${sd} sleeve`)].join(" + ")} print · shown on {color?.colorName}
@@ -148,7 +150,8 @@ export default function CollectionDetailPage() {
                 return (
                   <button key={p.style_id} className={`style ${i === styleIdx ? "on" : ""}`}
                     onClick={() => { setStyleIdx(i); setErr(""); setAdded(""); }}>
-                    <DesignMockup garmentImage={photoFor(p, c)} designUrl={data.design_url} placement={p.placement} />
+                    <DesignMockup garmentImage={photoFor(p, c)} designUrl={data.design_url} placement={p.placement}
+                      sleeves={SLEEVE_SIDES.filter(sd => sleeveModeFor(data, p, sd) === "included").map(sd => ({ side: sd, url: sleeveArt(data, sd)! }))} />
                     <span className="style-name">{p.label || p.style?.title}</span>
                     {fp != null && <span className="style-price">from ${fp.toFixed(2)}</span>}
                   </button>

@@ -114,7 +114,8 @@ export default function CartDrawer() {
                 <div key={item.sku} className="cart-item">
                   <div className="item-img-wrap">
                     {item.collection ? (
-                      <DesignMockup garmentImage={item.image} designUrl={item.collection.designUrl} placement={item.collection.placement} alt={item.title} />
+                      <DesignMockup garmentImage={item.image} designUrl={item.collection.designUrl} placement={item.collection.placement}
+                        sleeves={(item.collection.sleeves || []).map(s => ({ side: s.side, url: s.url }))} alt={item.title} />
                     ) : item.image ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={item.image} alt={item.title} className="item-img" />

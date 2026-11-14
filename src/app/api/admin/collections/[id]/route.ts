@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { slugify } from "@/lib/collections";
-import { DESIGN_BUCKET, isAdmin, loadCollections, sanitizeProducts, uploadedPathFromUrl } from "@/lib/collections-server";
+import { DESIGN_BUCKET, coverPath, managerGuard, loadCollections, sanitizeProducts, uploadedPathFromUrl } from "@/lib/collections-server";
 
 /**
  * PUT /api/admin/collections/[id]
- * JSON: { name?, slug?, description?, active?, sort_order?, left_sleeve_url?, right_sleeve_url?, products? }
+ * JSON: { name?, slug?, description?, active?, sort_order?, left_sleeve_url?, right_sleeve_url?, photo_url?, products? }
  * `products` (when present) replaces the full list of styles for the collection.
  */
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
-  if (!isAdmin(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const denied = await managerGuard(req);
+  if (denied) return denied;
 
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
@@ -20,10 +21,10 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   if (typeof body.description === "string") patch.description = body.description.trim() || null;
   if (typeof body.active === "boolean") patch.active = body.active;
   if (Number.isInteger(body.sort_order)) patch.sort_order = body.sort_order;
-  for (const key of ["left_sleeve_url", "right_sleeve_url"] as const) {
+  for (const key of ["left_sleeve_url", "right_sleeve_url", "photo_url"] as const) {
     if (body[key] === null || body[key] === "") patch[key] = null;
     else if (typeof body[key] === "string") {
-      if (!body[key].startsWith("https://")) return NextResponse.json({ error: "Sleeve art must be an https:// image URL" }, { status: 400 });
+      if (!body[key].startsWith("https://")) return NextResponse.json({ error: "Images must be https:// URLs" }, { status: 400 });
       patch[key] = body[key];
     }
   }
@@ -36,7 +37,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   }
 
   // When sleeve art is replaced or removed, delete our uploaded copy after saving
-  const before = (patch.left_sleeve_url !== undefined || patch.right_sleeve_url !== undefined)
+  const before = (patch.left_sleeve_url !== undefined || patch.right_sleeve_url !== undefined || patch.photo_url !== undefined)
     ? (await loadCollections({ id: params.id }))[0] : undefined;
 
   if (Object.keys(patch).length) {
@@ -57,8 +58,8 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
   const [updated] = await loadCollections({ id: params.id });
   if (before && updated) {
-    const inUse = new Set([updated.design_url, updated.left_sleeve_url, updated.right_sleeve_url]);
-    const stale = [before.left_sleeve_url, before.right_sleeve_url]
+    const inUse = new Set([updated.design_url, updated.left_sleeve_url, updated.right_sleeve_url, updated.photo_url]);
+    const stale = [before.left_sleeve_url, before.right_sleeve_url, before.photo_url]
       .filter(u => u && !inUse.has(u)).map(uploadedPathFromUrl).filter((x): x is string => !!x);
     if (stale.length) await db.storage.from(DESIGN_BUCKET).remove(stale);
   }
@@ -68,7 +69,8 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
 /** DELETE /api/admin/collections/[id] — removes the collection (and its uploaded design file). */
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
-  if (!isAdmin(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const denied = await managerGuard(req);
+  if (denied) return denied;
   const db = supabaseAdmin();
 
   const [existing] = await loadCollections({ id: params.id });
@@ -78,8 +80,8 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   // Only remove files this feature uploaded (gallery designs picked by URL are left alone)
-  const paths = [...new Set([existing.design_url, existing.left_sleeve_url, existing.right_sleeve_url]
-    .map(uploadedPathFromUrl).filter((x): x is string => !!x))];
+  const paths = [...new Set([existing.design_url, existing.left_sleeve_url, existing.right_sleeve_url, existing.photo_url]
+    .map(uploadedPathFromUrl).filter((x): x is string => !!x)), coverPath(existing.id)];
   if (paths.length) await db.storage.from(DESIGN_BUCKET).remove(paths);
   return NextResponse.json({ ok: true });
 }

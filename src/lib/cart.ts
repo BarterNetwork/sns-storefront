@@ -1,3 +1,5 @@
+import type { Placement } from "@/lib/collections";
+
 export interface ShotGlassCartConfig {
   occasionSlug: string;
   occasionName: string;
@@ -28,7 +30,7 @@ export interface CollectionCartConfig {
   collectionName: string;
   designUrl: string;
   printLocation: "Front" | "Back";
-  placement: { x: number; y: number; w: number };
+  placement: Placement;
   productLabel: string | null;
   garmentSku: string;   // the real S&S SKU (CartItem.sku is made unique per design + sleeves)
   printFee: number;     // total decoration per piece (main print + sleeves)

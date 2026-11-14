@@ -1,12 +1,24 @@
 import { PRINT_PRICES } from "@/lib/pricing";
 
-export interface Placement {
-  x: number; // center, fraction of image width (0–1)
-  y: number; // center, fraction of image height (0–1)
-  w: number; // design width, fraction of image width (0–1)
+/** Where one piece of art sits on the product photo. */
+export interface Spot {
+  x: number;  // center, fraction of image width (0–1)
+  y: number;  // center, fraction of image height (0–1)
+  w: number;  // art width, fraction of image width (0–1)
+  r?: number; // rotation in degrees (-180…180), default 0
+}
+
+/** Main design spot, plus optional spots for sleeve art on the same photo. */
+export interface Placement extends Spot {
+  left?: Spot;  // wearer's left sleeve (appears on the viewer's right of a front photo)
+  right?: Spot; // wearer's right sleeve (appears on the viewer's left)
 }
 
 export const DEFAULT_PLACEMENT: Placement = { x: 0.5, y: 0.4, w: 0.36 };
+export const DEFAULT_SLEEVE_SPOT: Record<"left" | "right", Spot> = {
+  left:  { x: 0.83, y: 0.3, w: 0.1, r: 0 },
+  right: { x: 0.17, y: 0.3, w: 0.1, r: 0 },
+};
 
 export type CollectionPrintLocation = "Front" | "Back";
 
@@ -38,6 +50,7 @@ export interface Collection {
   design_url: string;
   left_sleeve_url: string | null;
   right_sleeve_url: string | null;
+  photo_url?: string | null; // main product photo (lifestyle shot); optional
   active: boolean;
   sort_order: number;
   created_at?: string;
@@ -80,16 +93,24 @@ export function slugify(s: string): string {
   return s.toLowerCase().trim().replace(/['"]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
 }
 
-export function clampPlacement(p: Partial<Placement> | null | undefined): Placement {
-  const n = (v: unknown, d: number, lo: number, hi: number) => {
-    const x = typeof v === "number" && isFinite(v) ? v : d;
+function clampSpot(p: Partial<Spot> | null | undefined, d: Spot): Spot {
+  const n = (v: unknown, def: number, lo: number, hi: number) => {
+    const x = typeof v === "number" && isFinite(v) ? v : def;
     return Math.min(hi, Math.max(lo, x));
   };
   return {
-    x: n(p?.x, DEFAULT_PLACEMENT.x, 0, 1),
-    y: n(p?.y, DEFAULT_PLACEMENT.y, 0, 1),
-    w: n(p?.w, DEFAULT_PLACEMENT.w, 0.05, 1),
+    x: n(p?.x, d.x, 0, 1),
+    y: n(p?.y, d.y, 0, 1),
+    w: n(p?.w, d.w, 0.02, 1),
+    r: Math.round(n(p?.r, d.r ?? 0, -180, 180)),
   };
+}
+
+export function clampPlacement(p: Partial<Placement> | null | undefined): Placement {
+  const out: Placement = clampSpot(p, DEFAULT_PLACEMENT);
+  if (p?.left)  out.left  = clampSpot(p.left,  DEFAULT_SLEEVE_SPOT.left);
+  if (p?.right) out.right = clampSpot(p.right, DEFAULT_SLEEVE_SPOT.right);
+  return out;
 }
 
 export function toSleeveMode(v: unknown): SleeveMode {
