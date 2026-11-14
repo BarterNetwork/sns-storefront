@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useCart } from "@/context/CartContext";
 import { cartTotal } from "@/lib/cart";
+import DesignMockup from "@/components/DesignMockup";
 
 export default function CartDrawer() {
   const { items, isOpen, closeCart, updateQty, removeItem, clearCart } = useCart();
@@ -37,6 +38,15 @@ export default function CartDrawer() {
         lines.push(`  Total: $${i.price.toFixed(2)} BB`);
         return lines.join("\n");
       }
+      if (i.collection) {
+        const c = i.collection;
+        return [
+          `• DESIGN "${c.collectionName}" on ${i.brandName} ${i.styleName}${c.productLabel ? ` (${c.productLabel})` : ""} — ${i.colorName}, ${i.sizeName} × ${i.qty} @ $${i.price.toFixed(2)}`,
+          `  SKU ${c.garmentSku} · Print: ${[c.printLocation, ...(c.sleeves || []).map(s => `${s.side} sleeve`)].join(" + ")} (+$${c.printFee.toFixed(2)}/pc)`,
+          `  Art: ${c.designUrl}`,
+          ...(c.sleeves || []).map(s => `  ${s.side === "left" ? "Left" : "Right"} sleeve art: ${s.url}`),
+        ].join("\n");
+      }
       return `• ${i.brandName} ${i.styleName} — ${i.colorName}, ${i.sizeName} × ${i.qty} @ $${i.price.toFixed(2)}`;
     }).join("\n");
 
@@ -51,7 +61,7 @@ export default function CartDrawer() {
       color_name: items.map(i => i.colorName).join(", "),
       size_name: items.map(i => i.sizeName).join(", "),
       quantity: items.reduce((s, i) => s + i.qty, 0),
-      sku: items[0]?.sku,
+      sku: items[0]?.collection?.garmentSku ?? items[0]?.sku,
       barter_offer: `$${total.toFixed(2)} Barter Bucks`,
     };
 
@@ -103,7 +113,9 @@ export default function CartDrawer() {
               {items.map(item => (
                 <div key={item.sku} className="cart-item">
                   <div className="item-img-wrap">
-                    {item.image ? (
+                    {item.collection ? (
+                      <DesignMockup garmentImage={item.image} designUrl={item.collection.designUrl} placement={item.collection.placement} alt={item.title} />
+                    ) : item.image ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={item.image} alt={item.title} className="item-img" />
                     ) : (
@@ -113,6 +125,12 @@ export default function CartDrawer() {
                   <div className="item-info">
                     <p className="item-brand">{item.brandName}</p>
                     <p className="item-title">{item.title}</p>
+                    {item.collection && (
+                      <p className="item-variant">
+                        Design: {item.collection.collectionName} · {item.collection.printLocation} print
+                        {item.collection.sleeves?.length ? ` + ${item.collection.sleeves.map(s => s.side).join(" & ")} sleeve${item.collection.sleeves.length > 1 ? "s" : ""}` : ""}
+                      </p>
+                    )}
                     <p className="item-variant">{item.colorName} · {item.sizeName}</p>
                     <p className="item-price">${item.price.toFixed(2)} / piece</p>
                     <div className="qty-row">

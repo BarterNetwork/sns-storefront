@@ -204,6 +204,7 @@ function StorefrontInner() {
             <button type="submit" className="search-btn">Search</button>
           </form>
 
+          <a href="/collections" className="header-designs">Shop Designs</a>
           <div className="header-tagline">Buy with Barter Bucks · Wear what you love</div>
         </div>
       </header>
@@ -312,6 +313,8 @@ function StorefrontInner() {
         .logo-block { display: flex; align-items: center; flex-shrink: 0; }
         .logo-img { height: 52px; width: auto; object-fit: contain; }
         .header-tagline { font-size: 0.75rem; color: #555; letter-spacing: 0.04em; margin-left: auto; }
+        .header-designs { font-size: 0.8rem; font-weight: 600; color: #e8c97e; text-decoration: none; border: 1px solid #e8c97e55; border-radius: 999px; padding: 0.4rem 0.9rem; white-space: nowrap; }
+        .header-designs:hover { background: #e8c97e18; }
 
         /* Search */
         .header-search {

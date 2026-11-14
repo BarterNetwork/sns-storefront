@@ -22,7 +22,21 @@ export interface ShotGlassCartConfig {
   notes?: string;
 }
 
+/** A garment printed with a pre-made design from a design collection. */
+export interface CollectionCartConfig {
+  collectionSlug: string;
+  collectionName: string;
+  designUrl: string;
+  printLocation: "Front" | "Back";
+  placement: { x: number; y: number; w: number };
+  productLabel: string | null;
+  garmentSku: string;   // the real S&S SKU (CartItem.sku is made unique per design + sleeves)
+  printFee: number;     // total decoration per piece (main print + sleeves)
+  sleeves?: { side: "left" | "right"; url: string; fee: number }[];
+}
+
 export interface CartItem {
+  /** Unique cart line key. For collection items this is `${garmentSku}::${collectionSlug}`. */
   sku: string;
   styleId: number;
   brandName: string;
@@ -34,6 +48,7 @@ export interface CartItem {
   qty: number;
   image: string | null;
   shotGlass?: ShotGlassCartConfig;
+  collection?: CollectionCartConfig;
 }
 
 const KEY = "tsd_cart";

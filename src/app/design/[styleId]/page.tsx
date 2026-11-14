@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { PRINT_PRICES } from "@/lib/pricing";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -190,7 +191,6 @@ const TEMPLATES: Record<string, Template[]> = {
 
 const TEMPLATE_CATEGORIES = Object.keys(TEMPLATES);
 
-const PRINT_PRICES = { Front: 15, Back: 5, "Left Sleeve": 3, "Right Sleeve": 3 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
