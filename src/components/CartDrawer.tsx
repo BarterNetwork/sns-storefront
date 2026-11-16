@@ -5,78 +5,30 @@ import { useCart } from "@/context/CartContext";
 import { cartTotal } from "@/lib/cart";
 import DesignMockup from "@/components/DesignMockup";
 
+const BN_CHECKOUT_URL = "https://barternetworkokc.com/api/checkout/tshirt-depot";
+const BN_LISTING_URL = (id: number) => `https://barternetworkokc.com/listings/${id}/buy`;
+
 export default function CartDrawer() {
-  const { items, isOpen, closeCart, updateQty, removeItem, clearCart } = useCart();
+  const { items, isOpen, closeCart, updateQty, removeItem } = useCart();
   const [checking, setChecking] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [message, setMessage] = useState("");
   const [err, setErr] = useState("");
 
   const total = cartTotal(items);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name || !email) { setErr("Name and email are required."); return; }
+  const handleCheckout = async () => {
     setErr("");
     setChecking(true);
-
-    const itemLines = items.map(i => {
-      if (i.shotGlass) {
-        const sg = i.shotGlass;
-        const lines: string[] = [
-          `• Shot Glass: ${sg.designName} (${sg.occasionName})`,
-          `  ${sg.glassQty}× ${sg.glassSize} glass${sg.glassQty !== 1 ? "es" : ""} — ${sg.packagingType !== "none" ? sg.packagingType.replace(/_/g, " ") : "no packaging"}`,
-        ];
-        const deco = [sg.addBow && "bow", sg.addRibbon && "ribbon", sg.addUvSticker && "UV sticker"].filter(Boolean).join(", ");
-        if (deco) lines.push(`  Decorations: ${deco}`);
-        if (sg.personalizationLines.length) lines.push(`  Text: ${sg.personalizationLines.join(" / ")}`);
-        if (sg.photoUrls.length) lines.push(`  Photos: ${sg.photoUrls.length} attached`);
-        if (sg.design2Name) lines.push(`  2nd design: ${sg.design2Name}`);
-        lines.push(`  Total: $${i.price.toFixed(2)} BB`);
-        return lines.join("\n");
-      }
-      if (i.collection) {
-        const c = i.collection;
-        return [
-          `• DESIGN "${c.collectionName}" on ${i.brandName} ${i.styleName}${c.productLabel ? ` (${c.productLabel})` : ""} — ${i.colorName}, ${i.sizeName} × ${i.qty} @ $${i.price.toFixed(2)}`,
-          `  SKU ${c.garmentSku} · Print: ${[c.printLocation, ...(c.sleeves || []).map(s => `${s.side} sleeve`)].join(" + ")} (+$${c.printFee.toFixed(2)}/pc)`,
-          `  Art: ${c.designUrl}`,
-          ...(c.sleeves || []).map(s => `  ${s.side === "left" ? "Left" : "Right"} sleeve art: ${s.url}`),
-        ].join("\n");
-      }
-      return `• ${i.brandName} ${i.styleName} — ${i.colorName}, ${i.sizeName} × ${i.qty} @ $${i.price.toFixed(2)}`;
-    }).join("\n");
-
-    const body = {
-      customer_name: name,
-      customer_email: email,
-      customer_phone: phone || null,
-      message: `ORDER REQUEST:\n${itemLines}\n\nTotal: $${total.toFixed(2)} BB\n\nNotes: ${message}`,
-      style_id: items[0]?.styleId,
-      brand_name: items.map(i => i.brandName).join(", "),
-      style_name: items.map(i => i.styleName).join(", "),
-      color_name: items.map(i => i.colorName).join(", "),
-      size_name: items.map(i => i.sizeName).join(", "),
-      quantity: items.reduce((s, i) => s + i.qty, 0),
-      sku: items[0]?.collection?.garmentSku ?? items[0]?.sku,
-      barter_offer: `$${total.toFixed(2)} Barter Bucks`,
-    };
-
     try {
-      const res = await fetch("/api/inquiries", {
+      const res = await fetch(BN_CHECKOUT_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ items }),
       });
-      if (!res.ok) throw new Error("Failed");
-      setSuccess(true);
-      clearCart();
-    } catch {
-      setErr("Something went wrong. Please try again.");
-    } finally {
+      const json = await res.json();
+      if (!res.ok || json.error) throw new Error(json.error || "Checkout failed.");
+      window.location.href = BN_LISTING_URL(json.listing_id);
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : "Something went wrong. Please try again.");
       setChecking(false);
     }
   };
@@ -92,16 +44,7 @@ export default function CartDrawer() {
           <button className="close-btn" onClick={closeCart}>✕</button>
         </div>
 
-        {success ? (
-          <div className="success-state">
-            <div className="success-icon">✓</div>
-            <h3>Order Request Submitted!</h3>
-            <p>We&apos;ll contact you at {email} to confirm your Barter Bucks order.</p>
-            <button className="continue-btn" onClick={() => { setSuccess(false); closeCart(); }}>
-              Continue Shopping
-            </button>
-          </div>
-        ) : items.length === 0 ? (
+        {items.length === 0 ? (
           <div className="empty-state">
             <div className="empty-icon">◎</div>
             <p>Your cart is empty.</p>
@@ -151,17 +94,13 @@ export default function CartDrawer() {
               <span className="total-amount">${total.toFixed(2)} BB</span>
             </div>
 
-            <form className="checkout-form" onSubmit={handleSubmit}>
-              <p className="form-label">Your contact info to complete the order:</p>
-              <input className="input" placeholder="Your name *" value={name} onChange={e => setName(e.target.value)} />
-              <input className="input" placeholder="Email *" type="email" value={email} onChange={e => setEmail(e.target.value)} />
-              <input className="input" placeholder="Phone (optional)" value={phone} onChange={e => setPhone(e.target.value)} />
-              <textarea className="input textarea" placeholder="Any notes about your order…" value={message} onChange={e => setMessage(e.target.value)} rows={2} />
+            <div className="checkout-form">
               {err && <p className="err">{err}</p>}
-              <button className="submit-btn" type="submit" disabled={checking}>
-                {checking ? "Placing order…" : `Place Order · $${total.toFixed(2)} BB`}
+              <button className="submit-btn" onClick={handleCheckout} disabled={checking}>
+                {checking ? "Creating order…" : `Checkout · $${total.toFixed(2)} BB`}
               </button>
-            </form>
+              <p className="form-label">You&apos;ll pay with Barter Bucks or card on the next page.</p>
+            </div>
           </>
         )}
       </aside>
@@ -186,14 +125,11 @@ export default function CartDrawer() {
         .close-btn { background: none; border: none; color: #888; font-size: 1rem; cursor: pointer; padding: 0.25rem; }
         .close-btn:hover { color: #f0ede8; }
 
-        .empty-state, .success-state {
+        .empty-state {
           flex: 1; display: flex; flex-direction: column; align-items: center;
           justify-content: center; gap: 0.75rem; color: #555; padding: 2rem;
         }
         .empty-icon { font-size: 2rem; }
-        .success-icon { font-size: 2.5rem; color: #7ec87e; }
-        .success-state h3 { color: #f0ede8; margin: 0; }
-        .success-state p { font-size: 0.85rem; text-align: center; color: #888; margin: 0; }
         .continue-btn {
           margin-top: 0.5rem; padding: 0.6rem 1.5rem;
           background: none; border: 1px solid #333; color: #888;
