@@ -46,6 +46,12 @@ export default function RootLayout({
         />
       </head>
       <body data-gramm="false" data-gramm_editor="false" data-enable-grammarly="false">
+        <div style={{background:"#0b0b0f",borderBottom:"1px solid #1a1a1a",padding:"0.45rem 1.25rem",display:"flex",alignItems:"center",justifyContent:"space-between",gap:"1rem"}}>
+          <a href="https://barternetworkokc.com" style={{color:"#D4AF37",textDecoration:"none",fontSize:"0.78rem",fontFamily:"'DM Sans',sans-serif",fontWeight:600,letterSpacing:"0.03em"}}>
+            ← Barter Network
+          </a>
+          <span style={{color:"#555",fontSize:"0.72rem",fontFamily:"'DM Sans',sans-serif"}}>Powered by Barter Network OKC</span>
+        </div>
         <Providers>{children}</Providers>
       </body>
     </html>
