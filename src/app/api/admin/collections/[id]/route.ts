@@ -9,8 +9,8 @@ import { DESIGN_BUCKET, coverPath, managerGuard, loadCollections, sanitizeProduc
  * `products` (when present) replaces the full list of styles for the collection.
  */
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
-  const denied = await managerGuard(req);
-  if (denied) return denied;
+  const auth = await managerGuard(req);
+  if (auth instanceof NextResponse) return auth;
 
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
@@ -38,10 +38,10 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
   // When sleeve art is replaced or removed, delete our uploaded copy after saving
   const before = (patch.left_sleeve_url !== undefined || patch.right_sleeve_url !== undefined || patch.photo_url !== undefined)
-    ? (await loadCollections({ id: params.id }))[0] : undefined;
+    ? (await loadCollections({ id: params.id, userId: auth.userId }))[0] : undefined;
 
   if (Object.keys(patch).length) {
-    const { error } = await db.from("design_collections").update(patch).eq("id", params.id);
+    const { error } = await db.from("design_collections").update(patch).eq("id", params.id).eq("user_id", auth.userId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
@@ -56,7 +56,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     }
   }
 
-  const [updated] = await loadCollections({ id: params.id });
+  const [updated] = await loadCollections({ id: params.id, userId: auth.userId });
   if (before && updated) {
     const inUse = new Set([updated.design_url, updated.left_sleeve_url, updated.right_sleeve_url, updated.photo_url]);
     const stale = [before.left_sleeve_url, before.right_sleeve_url, before.photo_url]
@@ -69,14 +69,14 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
 /** DELETE /api/admin/collections/[id] — removes the collection (and its uploaded design file). */
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
-  const denied = await managerGuard(req);
-  if (denied) return denied;
+  const auth = await managerGuard(req);
+  if (auth instanceof NextResponse) return auth;
   const db = supabaseAdmin();
 
-  const [existing] = await loadCollections({ id: params.id });
+  const [existing] = await loadCollections({ id: params.id, userId: auth.userId });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const { error } = await db.from("design_collections").delete().eq("id", params.id);
+  const { error } = await db.from("design_collections").delete().eq("id", params.id).eq("user_id", auth.userId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   // Only remove files this feature uploaded (gallery designs picked by URL are left alone)

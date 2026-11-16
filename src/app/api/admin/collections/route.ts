@@ -3,12 +3,12 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { slugify } from "@/lib/collections";
 import { managerGuard, loadCollections, uploadCollectionImage } from "@/lib/collections-server";
 
-/** GET /api/admin/collections — every collection, active or not. */
+/** GET /api/admin/collections — collections belonging to the requesting manager. */
 export async function GET(req: NextRequest) {
-  const denied = await managerGuard(req);
-  if (denied) return denied;
+  const auth = await managerGuard(req);
+  if (auth instanceof NextResponse) return auth;
   try {
-    return NextResponse.json({ data: await loadCollections() });
+    return NextResponse.json({ data: await loadCollections({ userId: auth.userId }) });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
@@ -19,8 +19,8 @@ export async function GET(req: NextRequest) {
  * multipart form: name, description?, and either `file` (design image) or `design_url`.
  */
 export async function POST(req: NextRequest) {
-  const denied = await managerGuard(req);
-  if (denied) return denied;
+  const auth = await managerGuard(req);
+  if (auth instanceof NextResponse) return auth;
 
   const form = await req.formData();
   const name = (form.get("name") as string | null)?.trim();
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
   for (let n = 2; used.has(slug); n++) slug = `${base}-${n}`;
 
   const { data, error } = await db.from("design_collections")
-    .insert({ name, description, slug, design_url: designUrl, storage_path: storagePath, active: false })
+    .insert({ name, description, slug, design_url: designUrl, storage_path: storagePath, active: false, user_id: auth.userId })
     .select("id")
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

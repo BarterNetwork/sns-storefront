@@ -5,19 +5,19 @@ import { Collection, CollectionProduct, clampPlacement, toSleeveMode } from "@/l
 
 export const DESIGN_BUCKET = "gallery-designs";
 
-/** Only the T-Shirt Depot Barter Network profile may manage collections. Returns an error response, or null if allowed. */
-export async function managerGuard(req: NextRequest): Promise<NextResponse | null> {
+/** Only collection managers may access collections. Returns { userId } when allowed, or an error response when denied. */
+export async function managerGuard(req: NextRequest): Promise<{ userId: string } | NextResponse> {
   const r = await requireCollectionManager(req);
   if ("status" in r) {
     return NextResponse.json(
-      { error: r.status === 401 ? "Please sign in with your T-Shirt Depot account." : "This account can't manage design collections." },
+      { error: r.status === 401 ? "Please sign in with your Barter Network account." : "This account can't manage design collections." },
       { status: r.status },
     );
   }
-  return null;
+  return { userId: r.user.id };
 }
 
-const COLLECTION_COLS = "id, slug, name, description, design_url, storage_path, left_sleeve_url, right_sleeve_url, photo_url, active, sort_order, created_at";
+const COLLECTION_COLS = "id, slug, name, description, design_url, storage_path, left_sleeve_url, right_sleeve_url, photo_url, active, sort_order, created_at, user_id";
 const PRODUCT_COLS = "id, collection_id, style_id, label, print_location, placement, print_fee, default_color, allowed_colors, left_sleeve, right_sleeve, sort_order";
 
 function normalizeProduct(row: any): CollectionProduct {
@@ -37,13 +37,14 @@ function normalizeProduct(row: any): CollectionProduct {
 }
 
 /** Load collections (optionally only active ones, or one slug) with their products attached. */
-export async function loadCollections(opts: { activeOnly?: boolean; slug?: string; id?: string } = {}): Promise<(Collection & { storage_path?: string | null })[]> {
+export async function loadCollections(opts: { activeOnly?: boolean; slug?: string; id?: string; userId?: string } = {}): Promise<(Collection & { storage_path?: string | null; user_id?: string | null })[]> {
   const db = supabaseAdmin();
   let q = db.from("design_collections").select(COLLECTION_COLS)
     .order("sort_order").order("created_at", { ascending: false });
   if (opts.activeOnly) q = q.eq("active", true);
   if (opts.slug) q = q.eq("slug", opts.slug);
   if (opts.id) q = q.eq("id", opts.id);
+  if (opts.userId) q = q.eq("user_id", opts.userId);
 
   const { data: cols, error } = await q;
   if (error) throw error;
