@@ -2,12 +2,13 @@ import { NextResponse } from "next/server";
 import { loadCollections, getStyleCards } from "@/lib/collections-server";
 
 /**
- * GET /api/collections
- * Active design collections for the shop, each with its styles and a card image per style.
+ * GET /api/collections?userId=<bnUserId>
+ * Active design collections, optionally scoped to a specific Barter Network user.
  */
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const collections = await loadCollections({ activeOnly: true });
+    const userId = new URL(req.url).searchParams.get("userId") || undefined;
+    const collections = await loadCollections({ activeOnly: true, userId });
     const cards = await getStyleCards(collections.flatMap(c => c.products));
     const data = collections
       .filter(c => c.products.length > 0)
