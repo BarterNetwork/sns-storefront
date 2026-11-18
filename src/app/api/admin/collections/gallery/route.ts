@@ -4,8 +4,8 @@ import { managerGuard } from "@/lib/collections-server";
 
 /** GET /api/admin/collections/gallery — gallery designs to pick collection/sleeve art from. */
 export async function GET(req: NextRequest) {
-  const denied = await managerGuard(req);
-  if (denied) return denied;
+  const auth = await managerGuard(req);
+  if (auth instanceof NextResponse) return auth;
   const { data, error } = await supabaseAdmin()
     .from("gallery_designs")
     .select("id, name, category, url")
