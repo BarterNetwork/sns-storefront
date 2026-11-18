@@ -133,6 +133,16 @@ export default function CollectionDetailPage() {
           <p className="print-note">
             {[product.print_location, ...activeSleeves.map(sd => `${sd} sleeve`)].join(" + ")} print · shown on {color?.colorName}
           </p>
+          {product.colors.length > 1 && (
+            <div className="swatches mobile-swatches">
+              {product.colors.map(c => (
+                <button key={c.colorName} title={c.colorName} aria-label={c.colorName}
+                  className={`sw ${c.colorName === color?.colorName ? "on" : ""}`}
+                  style={{ background: swatchBg(c) }}
+                  onClick={() => setColorBy(cb => ({ ...cb, [product.style_id]: c.colorName }))} />
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Options */}
@@ -302,13 +312,14 @@ export default function CollectionDetailPage() {
         .link { background: none; border: none; color: #e8c97e; text-decoration: underline; cursor: pointer; font-family: inherit; font-size: inherit; padding: 0; }
         .fine { font-size: 0.72rem; color: #555; margin: 0.8rem 0 0; }
 
+        .mobile-swatches { display: none; }
+
         @media (max-width: 760px) {
           .layout { grid-template-columns: 1fr; gap: 1.5rem; padding: 1.25rem 1rem; }
           .preview { position: static; max-width: 420px; margin: 0 auto; width: 100%; }
           .top { padding: 0.85rem 1rem; }
-          .opts { display: flex; flex-direction: column; }
-          .step-color { order: -1; }
-          .step-product { order: 0; }
+          .mobile-swatches { display: flex; flex-wrap: wrap; gap: 0.4rem; padding: 0.75rem 0 0; justify-content: center; }
+          .step-color .swatches { display: none; }
         }
       `}</style>
     </div>
