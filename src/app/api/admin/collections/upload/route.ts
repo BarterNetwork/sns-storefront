@@ -7,8 +7,8 @@ import { coverPath, managerGuard, uploadCollectionImage } from "@/lib/collection
  * which is stored at a fixed path per collection and overwritten on each save.
  */
 export async function POST(req: NextRequest) {
-  const denied = await managerGuard(req);
-  if (denied) return denied;
+  const auth = await managerGuard(req);
+  if (auth instanceof NextResponse) return auth;
   const form = await req.formData();
   const file = form.get("file") as File | null;
   const coverFor = (form.get("cover_for") as string | null)?.trim() || "";

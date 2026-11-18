@@ -37,5 +37,5 @@ function corsHeaders(origin: string): Record<string, string> {
 }
 
 export const config = {
-  matcher: ["/api/admin/collections/:path*", "/api/products/:path*"],
+  matcher: ["/api/admin/collections/:path*", "/api/products/:path*", "/api/admin/collections/presign"],
 };
