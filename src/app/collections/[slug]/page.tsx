@@ -112,7 +112,7 @@ export default function CollectionDetailPage() {
     return (
       <StateBox>
         <p>This design isn&apos;t available.</p>
-        <a href="/collections">See all designs →</a>
+        <a href="/">← Shop</a>
       </StateBox>
     );
   }
@@ -120,7 +120,7 @@ export default function CollectionDetailPage() {
   return (
     <div className="page">
       <header className="top">
-        <a href="/collections" className="back">← All designs</a>
+        <a href="/" className="back">← Shop</a>
         <button className="cart-btn" onClick={openCart}>Cart{count > 0 && <span className="badge">{count}</span>}</button>
       </header>
 
@@ -141,7 +141,7 @@ export default function CollectionDetailPage() {
           {data.description && <p className="desc">{data.description}</p>}
 
           {/* Step 1: product */}
-          <div className="step">
+          <div className="step step-product">
             <div className="step-head"><span className="num">1</span>Choose your product</div>
             <div className="styles">
               {data.products.map((p, i) => {
@@ -162,7 +162,7 @@ export default function CollectionDetailPage() {
           </div>
 
           {/* Step 2: color */}
-          <div className="step">
+          <div className="step step-color">
             <div className="step-head"><span className="num">2</span>Color: <b>{color?.colorName}</b>
               {product.colors.length === 1 && <span className="only">only color for this design</span>}
             </div>
@@ -306,6 +306,9 @@ export default function CollectionDetailPage() {
           .layout { grid-template-columns: 1fr; gap: 1.5rem; padding: 1.25rem 1rem; }
           .preview { position: static; max-width: 420px; margin: 0 auto; width: 100%; }
           .top { padding: 0.85rem 1rem; }
+          .opts { display: flex; flex-direction: column; }
+          .step-color { order: -1; }
+          .step-product { order: 0; }
         }
       `}</style>
     </div>
