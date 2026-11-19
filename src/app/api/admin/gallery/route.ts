@@ -27,38 +27,56 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   if (!checkPassword(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const form = await req.formData();
-  const file = form.get("file") as File | null;
-  const name = (form.get("name") as string | null)?.trim();
-  const category = (form.get("category") as string | null)?.trim() || "General";
-  const subcategory = (form.get("subcategory") as string | null)?.trim() || null;
+  const contentType = req.headers.get("content-type") || "";
 
-  if (!file || !name) return NextResponse.json({ error: "file and name required" }, { status: 400 });
+  let name: string | undefined;
+  let category: string;
+  let subcategory: string | null;
+  let url: string | undefined;
+  let storage_path: string | undefined;
 
-  const client = supabaseAdmin();
+  if (contentType.includes("application/json")) {
+    // Presign flow: file already uploaded, just save metadata
+    const body = await req.json().catch(() => ({}));
+    name = (body.name as string | undefined)?.trim();
+    category = (body.category as string | undefined)?.trim() || "General";
+    subcategory = (body.subcategory as string | undefined)?.trim() || null;
+    url = body.url;
+    storage_path = body.storage_path;
+    if (!name || !url) return NextResponse.json({ error: "name and url required" }, { status: 400 });
+  } else {
+    // Legacy FormData flow (small files only — kept for compatibility)
+    const form = await req.formData();
+    const file = form.get("file") as File | null;
+    name = (form.get("name") as string | null)?.trim();
+    category = (form.get("category") as string | null)?.trim() || "General";
+    subcategory = (form.get("subcategory") as string | null)?.trim() || null;
 
-  // Ensure bucket exists
-  const { data: buckets } = await client.storage.listBuckets();
-  if (!buckets?.find(b => b.name === BUCKET)) {
-    await client.storage.createBucket(BUCKET, { public: true });
+    if (!file || !name) return NextResponse.json({ error: "file and name required" }, { status: 400 });
+
+    const client = supabaseAdmin();
+    const { data: buckets } = await client.storage.listBuckets();
+    if (!buckets?.find(b => b.name === BUCKET)) {
+      await client.storage.createBucket(BUCKET, { public: true });
+    }
+
+    const ext = file.name.split(".").pop() || "png";
+    const path = `${category}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const bytes = await file.arrayBuffer();
+
+    const { error: uploadErr } = await client.storage
+      .from(BUCKET)
+      .upload(path, bytes, { contentType: file.type, upsert: false });
+
+    if (uploadErr) return NextResponse.json({ error: uploadErr.message }, { status: 500 });
+
+    url = client.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+    storage_path = path;
   }
 
-  // Upload file
-  const ext = file.name.split(".").pop() || "png";
-  const path = `${category}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-  const bytes = await file.arrayBuffer();
-
-  const { error: uploadErr } = await client.storage
-    .from(BUCKET)
-    .upload(path, bytes, { contentType: file.type, upsert: false });
-
-  if (uploadErr) return NextResponse.json({ error: uploadErr.message }, { status: 500 });
-
-  const { data: { publicUrl } } = client.storage.from(BUCKET).getPublicUrl(path);
-
-  const { data, error } = await client
+  const { data, error } = await supabaseAdmin()
     .from("gallery_designs")
-    .insert({ name, category, subcategory, url: publicUrl, storage_path: path, sort_order: 0 })
+    .insert({ name, category, subcategory, url, storage_path, sort_order: 0 })
     .select()
     .single();
 

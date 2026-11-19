@@ -132,13 +132,34 @@ export default function AdminGalleryPage() {
       if (queue[i].status !== "pending") continue;
       updateItem(i, { status: "uploading" });
       try {
-        const form = new FormData();
-        form.append("file", queue[i].file);
-        form.append("name", queue[i].name);
-        form.append("category", queue[i].category);
-        form.append("subcategory", queue[i].subcategory);
-        const res = await fetch("/api/admin/gallery", { method: "POST", headers: { "x-admin-password": p }, body: form });
-        updateItem(i, { status: res.ok ? "done" : "error", error: res.ok ? undefined : (await res.json()).error });
+        const item = queue[i];
+        const ext = (item.file.name.split(".").pop() || "png").toLowerCase().replace(/[^a-z0-9]/g, "") || "png";
+
+        // Step 1: get a presigned upload URL (bypasses Vercel body size limit)
+        const presignRes = await fetch("/api/admin/gallery/presign", {
+          method: "POST",
+          headers: { "x-admin-password": p, "Content-Type": "application/json" },
+          body: JSON.stringify({ ext, category: item.category }),
+        });
+        const presignJson = await presignRes.json().catch(() => ({}));
+        if (!presignRes.ok) { updateItem(i, { status: "error", error: presignJson.error || "Could not start upload" }); continue; }
+
+        // Step 2: upload file directly to Supabase
+        const uploadRes = await fetch(presignJson.signedUrl, {
+          method: "PUT",
+          headers: { "Content-Type": item.file.type || "image/png" },
+          body: item.file,
+        });
+        if (!uploadRes.ok) { updateItem(i, { status: "error", error: "File upload failed" }); continue; }
+
+        // Step 3: save metadata to gallery_designs table
+        const metaRes = await fetch("/api/admin/gallery", {
+          method: "POST",
+          headers: { "x-admin-password": p, "Content-Type": "application/json" },
+          body: JSON.stringify({ name: item.name, category: item.category, subcategory: item.subcategory, url: presignJson.publicUrl, storage_path: presignJson.path }),
+        });
+        const metaJson = await metaRes.json().catch(() => ({}));
+        updateItem(i, { status: metaRes.ok ? "done" : "error", error: metaRes.ok ? undefined : (metaJson.error || "Metadata save failed") });
       } catch (e: any) {
         updateItem(i, { status: "error", error: e.message });
       }
