@@ -38,6 +38,7 @@ export default function AdminGalleryPage() {
 
   const [designs, setDesigns] = useState<Design[]>([]);
   const [loadingDesigns, setLoadingDesigns] = useState(false);
+  const [dbCategories, setDbCategories] = useState<string[]>([]);
 
   const [queue, setQueue] = useState<UploadItem[]>([]);
   const [defaultCategory, setDefaultCategory] = useState("Sports");
@@ -104,7 +105,12 @@ export default function AdminGalleryPage() {
     setLoadingDesigns(true);
     const res = await fetch("/api/admin/gallery", { headers: { "x-admin-password": pw() } });
     const json = await res.json();
-    setDesigns(json.data || []);
+    const rows: Design[] = json.data || [];
+    setDesigns(rows);
+    // Merge DB categories with presets so all categories appear in dropdowns
+    const fromDb = [...new Set(rows.map(d => d.category))].filter(Boolean).sort();
+    const merged = [...new Set([...PRESET_CATEGORIES, ...fromDb])].sort();
+    setDbCategories(merged);
     setLoadingDesigns(false);
   };
 
@@ -312,7 +318,7 @@ export default function AdminGalleryPage() {
           <div className="field-group">
             <label className="label">Category</label>
             <div className="cat-pills">
-              {PRESET_CATEGORIES.map(c => (
+              {(dbCategories.length > 0 ? dbCategories : PRESET_CATEGORIES).map(c => (
                 <button key={c} className={`pill ${defaultCategory === c && !customCategory ? "active" : ""}`}
                   onClick={() => { setDefaultCategory(c); setCustomCategory(""); }}>{c}</button>
               ))}
@@ -399,8 +405,7 @@ export default function AdminGalleryPage() {
                 onChange={e => setBulkCat(e.target.value)}
               />
               <datalist id="cat-list">
-                {PRESET_CATEGORIES.map(c => <option key={c} value={c} />)}
-                {categories.filter(c => c !== "All").map(c => <option key={`ex-${c}`} value={c} />)}
+                {(dbCategories.length > 0 ? dbCategories : PRESET_CATEGORIES).map(c => <option key={c} value={c} />)}
               </datalist>
               <input
                 className="bulk-input"
